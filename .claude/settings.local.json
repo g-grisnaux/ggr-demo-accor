@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx -y @lgdd/d-scribe init demo --help)",
+      "Bash(npx -y @lgdd/d-scribe list deploy)",
+      "Bash(npx -y @lgdd/d-scribe list modes)",
+      "Bash(gcloud --version)",
+      "Bash(gcloud config *)",
+      "Bash(terraform version *)",
+      "Bash(kubectl version *)",
+      "Bash(docker version *)",
+      "Bash(npx -y @lgdd/d-scribe list backends --instrumentation ddot)",
+      "Bash(npx -y @lgdd/d-scribe list features --instrumentation ddot)",
+      "Bash(npx -y @lgdd/d-scribe init demo --backend node:express,java:spring,python:flask --frontend react:vite --features dbm:postgresql,apm:profiling,security:app,delivery:feature-flags --services 4 --deploy k8s --instrumentation ddot --dest .)"
+    ]
+  }
+}

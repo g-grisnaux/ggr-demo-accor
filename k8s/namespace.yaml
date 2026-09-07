@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-accor
+  labels:
+    app.kubernetes.io/part-of: demo-accor
+    tags.datadoghq.com/env: "demo-accor-260907"

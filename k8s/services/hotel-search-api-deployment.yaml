@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hotel-search-api
+  namespace: demo-accor
+  labels:
+    app: hotel-search-api
+    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/service: "hotel-search-api"
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hotel-search-api
+  template:
+    metadata:
+      labels:
+        app: hotel-search-api
+        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/service: "hotel-search-api"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/hotel-search-api.logs: '[{"source":"java","service":"hotel-search-api"}]'
+    spec:
+      containers:
+        - name: hotel-search-api
+          image: demo-accor/hotel-search-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          env:
+            - name: DD_SERVICE
+              value: "hotel-search-api"
+            - name: DD_ENV
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['tags.datadoghq.com/env']
+            - name: DD_VERSION
+              value: "1.0.0"
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_TRACE_PROPAGATION_STYLE
+              value: "datadog,tracecontext"
+            - name: PORT
+              value: "8081"
+            - name: HOTEL_SEARCH_SLOW_MODE
+              value: "false"
+            - name: HOTEL_SEARCH_EXPENSIVE_RANKING
+              value: "false"
+            - name: HOTEL_SEARCH_RANKING_PASSES
+              value: "60000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: jdbc-url
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "768Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 5
+            failureThreshold: 8
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20

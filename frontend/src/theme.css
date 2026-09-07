@@ -1,0 +1,50 @@
+/* ── Tailwind + DaisyUI ───────────────────────────────────────── */
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* ── Palette ──────────────────────────────────────────────────────
+ * This is the ONLY place to change colors.
+ * To rebrand for a customer, ask the AI:
+ * "Update src/theme.css to use [brand hex] as the primary color"
+ * ────────────────────────────────────────────────────────────── */
+@plugin "daisyui/theme" {
+  name: "datadog";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Brand — swap these two for customer rebranding */
+  --color-primary:           oklch(49% 0.135 293);  /* #632CA6 Datadog Purple */
+  --color-primary-content:   oklch(98% 0     0  );  /* white */
+  --color-secondary:         oklch(62% 0.217 292);  /* #8000FF Accent Purple  */
+  --color-secondary-content: oklch(98% 0     0  );  /* white */
+  --color-accent:            oklch(49% 0.135 293);
+  --color-accent-content:    oklch(98% 0     0  );
+
+  /* Semantic */
+  --color-info:              oklch(72% 0.19  231);
+  --color-info-content:      oklch(98% 0     0  );
+  --color-success:           oklch(52% 0.18  145);  /* dark green → white text */
+  --color-success-content:   oklch(98% 0     0  );
+  --color-warning:           oklch(72% 0.17   80);  /* amber → dark text */
+  --color-warning-content:   oklch(15% 0.05   80);
+  --color-error:             oklch(55% 0.22   27);
+  --color-error-content:     oklch(98% 0     0  );
+
+  /* Neutral */
+  --color-neutral:           oklch(28% 0.03  261);
+  --color-neutral-content:   oklch(95% 0.01  260);
+
+  /* Surface */
+  --color-base-100:          oklch(100% 0 0);        /* white */
+  --color-base-200:          oklch(97%  0 0);
+  --color-base-300:          oklch(92%  0 0);
+  --color-base-content:      oklch(12% 0.02 261);    /* near-black text */
+
+  --radius-selector: 1.9rem;
+  --radius-field:    0.5rem;
+  --radius-box:      0.75rem;
+  --border:          1px;
+  --depth:           1;
+  --noise:           0;
+}

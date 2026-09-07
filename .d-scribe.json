@@ -1,0 +1,17 @@
+{
+  "backends": [
+    "node:express",
+    "java:spring",
+    "python:flask"
+  ],
+  "frontend": "react:vite",
+  "features": [
+    "dbm:postgresql",
+    "apm:profiling",
+    "security:app",
+    "delivery:feature-flags"
+  ],
+  "deploy": "k8s",
+  "services": 4,
+  "instrumentation": "ddot"
+}

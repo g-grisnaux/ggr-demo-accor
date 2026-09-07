@@ -1,0 +1,15 @@
+{
+  "name": "graphql-bff",
+  "private": true,
+  "dependencies": {
+    "@apollo/server": "^5.5.1",
+    "@as-integrations/express5": "^1.1.2",
+    "@openfeature/server-sdk": "^1.23.0",
+    "dataloader": "^2.2.3",
+    "dd-trace": "^6.14.0",
+    "express": "^5.2.1",
+    "graphql": "^16.11.0",
+    "hot-shots": "^10.0.0",
+    "pino": "^9.0.0"
+  }
+}

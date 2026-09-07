@@ -1,0 +1,56 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: demo-accor
+
+resources:
+  - k8s/namespace.yaml
+  - k8s/deps/postgresql-deployment.yaml
+  - k8s/deps/postgresql-service.yaml
+  - k8s/services/graphql-bff-deployment.yaml
+  - k8s/services/graphql-bff-service.yaml
+  - k8s/services/hotel-search-api-deployment.yaml
+  - k8s/services/hotel-search-api-service.yaml
+  - k8s/services/booking-api-deployment.yaml
+  - k8s/services/booking-api-service.yaml
+  - k8s/services/payment-api-deployment.yaml
+  - k8s/services/payment-api-service.yaml
+  - k8s/frontend/frontend-deployment.yaml
+  - k8s/frontend/frontend-service.yaml
+  - k8s/traffic/traffic-deployment.yaml
+  - k8s/ingress.yaml
+
+# The schema and seed ship as a ConfigMap so Postgres builds itself on first
+# boot with no manual psql step. Names are prefixed 01/02/03 because the Postgres
+# entrypoint runs /docker-entrypoint-initdb.d in lexical order.
+configMapGenerator:
+  - name: postgres-initdb
+    files:
+      - deps/postgresql/01-datadog.sql
+      - deps/postgresql/02-schema.sql
+      - deps/postgresql/03-seed.sql
+    options:
+      disableNameSuffixHash: true
+
+# Rewritten to the Artifact Registry path by scripts/deploy-gke.sh, which sets
+# the project and region. Left registry-agnostic here so the same manifests run
+# against a local cluster.
+images:
+  - name: demo-accor/graphql-bff
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/graphql-bff
+    newTag: latest
+  - name: demo-accor/hotel-search-api
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/hotel-search-api
+    newTag: latest
+  - name: demo-accor/booking-api
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/booking-api
+    newTag: latest
+  - name: demo-accor/payment-api
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/payment-api
+    newTag: latest
+  - name: demo-accor/frontend
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/frontend
+    newTag: latest
+  - name: demo-accor/traffic
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/traffic
+    newTag: latest

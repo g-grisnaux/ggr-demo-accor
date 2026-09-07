@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic
+  namespace: demo-accor
+  labels:
+    app: traffic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic
+  template:
+    metadata:
+      labels:
+        app: traffic
+    spec:
+      containers:
+        - name: traffic
+          image: demo-accor/traffic:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--headless"
+            - "-f"
+            - "/home/locust/locustfile.py"
+            - "--host"
+            - "http://graphql-bff:8080"
+            - "-u"
+            - "8"
+            - "-r"
+            - "1"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

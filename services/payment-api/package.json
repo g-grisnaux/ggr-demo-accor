@@ -1,0 +1,11 @@
+{
+  "name": "payment-api",
+  "private": true,
+  "dependencies": {
+    "dd-trace": "^6.14.0",
+    "express": "^5.2.1",
+    "hot-shots": "^10.0.0",
+    "pg": "^8.13.0",
+    "pino": "^9.0.0"
+  }
+}

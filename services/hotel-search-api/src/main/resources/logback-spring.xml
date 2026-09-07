@@ -1,0 +1,13 @@
+<configuration>
+  <!-- JSON on stdout so the Datadog Agent parses it with no pipeline, and the
+       dd-java-agent injects dd.trace_id / dd.span_id for trace correlation. -->
+  <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <includeMdcKeyName>dd.trace_id</includeMdcKeyName>
+      <includeMdcKeyName>dd.span_id</includeMdcKeyName>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="JSON"/>
+  </root>
+</configuration>

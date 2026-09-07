@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-bff
+  namespace: demo-accor
+  labels:
+    app: graphql-bff
+    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/service: "graphql-bff"
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-bff
+  template:
+    metadata:
+      labels:
+        app: graphql-bff
+        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/service: "graphql-bff"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/graphql-bff.logs: '[{"source":"nodejs","service":"graphql-bff"}]'
+    spec:
+      containers:
+        - name: graphql-bff
+          image: demo-accor/graphql-bff:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DD_SERVICE
+              value: "graphql-bff"
+            - name: DD_ENV
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['tags.datadoghq.com/env']
+            - name: DD_VERSION
+              value: "1.0.0"
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_TRACE_PROPAGATION_STYLE
+              value: "datadog,tracecontext"
+            - name: PORT
+              value: "8080"
+            - name: HOTEL_SEARCH_URL
+              value: "http://hotel-search-api:8081"
+            - name: BOOKING_URL
+              value: "http://booking-api:8082"
+            - name: DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED
+              value: "true"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20

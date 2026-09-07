@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: demo-accor
+  labels:
+    app: postgresql
+    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/service: "postgresql"
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/service: "postgresql"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/postgresql.logs: '[{"source":"postgresql","service":"postgresql"}]'
+        # Database Monitoring. dbm:true is what turns the standard postgres
+        # integration into query-level sampling with execution plans.
+        ad.datadoghq.com/postgresql.checks: |
+          {
+            "postgres": {
+              "init_config": {},
+              "instances": [
+                {
+                  "host": "%%host%%",
+                  "port": 5432,
+                  "username": "datadog",
+                  "password": "datadog",
+                  "dbname": "accor",
+                  "dbm": true,
+                  "collect_schemas": {"enabled": true},
+                  "tags": ["env:demo-accor-260907", "service:postgresql"]
+                }
+              ]
+            }
+          }
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:16
+          # pg_stat_statements has to be preloaded at server start; creating the
+          # extension alone leaves DBM with no query metrics.
+          args:
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements"
+            - "-c"
+            - "pg_stat_statements.track=all"
+            - "-c"
+            - "track_activity_query_size=4096"
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "accor"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: DD_SERVICE
+              value: "postgresql"
+            - name: DD_ENV
+              value: "demo-accor-260907"
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "accor", "-d", "accor"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          # The seed inserts a million availability rows on first boot, so the
+          # liveness probe has to tolerate a long warm-up.
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "accor", "-d", "accor"]
+            periodSeconds: 10
+            failureThreshold: 30
+      volumes:
+        - name: initdb
+          configMap:
+            name: postgres-initdb

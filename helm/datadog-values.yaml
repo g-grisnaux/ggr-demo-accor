@@ -1,0 +1,38 @@
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  site: datadoghq.com
+  clusterName: demo-accor
+  kubelet:
+    tlsVerify: false
+  env:
+    - name: DD_ENV
+      value: "demo-accor-260907"
+  apm:
+    portEnabled: true
+    socketEnabled: true
+  logs:
+    enabled: true
+    containerCollectAll: true
+  processAgent:
+    enabled: true
+    processCollection: true
+  profiling:
+    enabled: true
+  # Database Monitoring is NOT configured here — `datadog.dbm` is not a key in
+  # this chart and was silently ignored. DBM is switched on by the postgres
+  # autodiscovery annotation in k8s/deps/postgresql-deployment.yaml, which sets
+  # "dbm": true on the integration instance.
+  # DDOT: the agent runs an OTel-compatible collector alongside the Datadog
+  # tracers, which is the hybrid setup the Accor team asked about.
+  otelCollector:
+    enabled: true
+  # Feature Flags are delivered over Remote Configuration. The flag itself is
+  # consumed by graphql-bff through DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED,
+  # set on that Deployment.
+  remoteConfiguration:
+    enabled: true
+
+clusterAgent:
+  enabled: true
+  admissionController:
+    mutateUnlabelled: true

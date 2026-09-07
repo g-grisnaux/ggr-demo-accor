@@ -1,0 +1,38 @@
+# Build-only compose file — `docker compose build` produces every image.
+# Running the stack is the job of the Kubernetes manifests in k8s/.
+#
+# Image names are lowercase because Docker rejects uppercase repository names,
+# and match the names the kustomization rewrites to Artifact Registry.
+services:
+  graphql-bff:
+    build: ./services/graphql-bff
+    image: demo-accor/graphql-bff:latest
+
+  hotel-search-api:
+    build: ./services/hotel-search-api
+    image: demo-accor/hotel-search-api:latest
+
+  booking-api:
+    build: ./services/booking-api
+    image: demo-accor/booking-api:latest
+
+  payment-api:
+    build: ./services/payment-api
+    image: demo-accor/payment-api:latest
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # RUM credentials are inlined at build time by Vite, so they have to be
+        # passed as build args rather than container env.
+        VITE_DD_RUM_APPLICATION_ID: ${DD_RUM_APPLICATION_ID}
+        VITE_DD_RUM_CLIENT_TOKEN: ${DD_RUM_CLIENT_TOKEN}
+        VITE_DD_SITE: ${DD_SITE:-datadoghq.com}
+        VITE_DD_ENV: ${DD_ENV}
+        VITE_DD_SERVICE: all-web
+    image: demo-accor/frontend:latest
+
+  traffic:
+    build: ./traffic
+    image: demo-accor/traffic:latest
