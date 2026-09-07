@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: graphql-bff
-  namespace: demo-accor
+  namespace: ggr-demo-accor
   labels:
     app: graphql-bff
-    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/env: "ggr-demo-accor-260907"
     tags.datadoghq.com/service: "graphql-bff"
     tags.datadoghq.com/version: "1.0.0"
 spec:
@@ -17,7 +17,7 @@ spec:
     metadata:
       labels:
         app: graphql-bff
-        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/env: "ggr-demo-accor-260907"
         tags.datadoghq.com/service: "graphql-bff"
         tags.datadoghq.com/version: "1.0.0"
       annotations:
@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: graphql-bff
-          image: demo-accor/graphql-bff:latest
+          image: ggr-demo-accor/graphql-bff:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

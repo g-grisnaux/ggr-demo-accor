@@ -24,7 +24,7 @@ variable "impersonate_service_account" {
 
 variable "cluster_name" {
   type    = string
-  default = "demo-accor"
+  default = "ggr-demo-accor"
 }
 
 variable "node_count" {
@@ -46,5 +46,5 @@ variable "create_artifact_registry" {
 
 variable "repository_name" {
   type    = string
-  default = "demo-accor"
+  default = "ggr-demo-accor"
 }

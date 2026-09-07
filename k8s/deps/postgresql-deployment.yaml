@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgresql
-  namespace: demo-accor
+  namespace: ggr-demo-accor
   labels:
     app: postgresql
-    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/env: "ggr-demo-accor-260907"
     tags.datadoghq.com/service: "postgresql"
     tags.datadoghq.com/version: "1.0.0"
 spec:
@@ -17,7 +17,7 @@ spec:
     metadata:
       labels:
         app: postgresql
-        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/env: "ggr-demo-accor-260907"
         tags.datadoghq.com/service: "postgresql"
         tags.datadoghq.com/version: "1.0.0"
       annotations:
@@ -37,7 +37,7 @@ spec:
                   "dbname": "accor",
                   "dbm": true,
                   "collect_schemas": {"enabled": true},
-                  "tags": ["env:demo-accor-260907", "service:postgresql"]
+                  "tags": ["env:ggr-demo-accor-260907", "service:postgresql"]
                 }
               ]
             }
@@ -73,7 +73,7 @@ spec:
             - name: DD_SERVICE
               value: "postgresql"
             - name: DD_ENV
-              value: "demo-accor-260907"
+              value: "ggr-demo-accor-260907"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d

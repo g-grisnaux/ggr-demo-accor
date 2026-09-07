@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: demo-accor
+  name: ggr-demo-accor
   labels:
-    app.kubernetes.io/part-of: demo-accor
-    tags.datadoghq.com/env: "demo-accor-260907"
+    app.kubernetes.io/part-of: ggr-demo-accor
+    tags.datadoghq.com/env: "ggr-demo-accor-260907"

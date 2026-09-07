@@ -19,9 +19,9 @@ set -euo pipefail
 PROJECT_ID="${PROJECT_ID:-datadog-ese-sandbox}"
 REGION="${REGION:-europe-west9}"
 ZONE="${ZONE:-europe-west9-a}"
-CLUSTER_NAME="${CLUSTER_NAME:-demo-accor}"
-REPOSITORY="${REPOSITORY:-demo-accor}"
-NAMESPACE="${NAMESPACE:-demo-accor}"
+CLUSTER_NAME="${CLUSTER_NAME:-ggr-demo-accor}"
+REPOSITORY="${REPOSITORY:-ggr-demo-accor}"
+NAMESPACE="${NAMESPACE:-ggr-demo-accor}"
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com}"
 REGISTRY_IDENTITY="${REGISTRY_IDENTITY:-service-account}"
 

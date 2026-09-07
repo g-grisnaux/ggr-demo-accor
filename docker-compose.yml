@@ -6,19 +6,19 @@
 services:
   graphql-bff:
     build: ./services/graphql-bff
-    image: demo-accor/graphql-bff:latest
+    image: ggr-demo-accor/graphql-bff:latest
 
   hotel-search-api:
     build: ./services/hotel-search-api
-    image: demo-accor/hotel-search-api:latest
+    image: ggr-demo-accor/hotel-search-api:latest
 
   booking-api:
     build: ./services/booking-api
-    image: demo-accor/booking-api:latest
+    image: ggr-demo-accor/booking-api:latest
 
   payment-api:
     build: ./services/payment-api
-    image: demo-accor/payment-api:latest
+    image: ggr-demo-accor/payment-api:latest
 
   frontend:
     build:
@@ -31,8 +31,8 @@ services:
         VITE_DD_SITE: ${DD_SITE:-datadoghq.com}
         VITE_DD_ENV: ${DD_ENV}
         VITE_DD_SERVICE: all-web
-    image: demo-accor/frontend:latest
+    image: ggr-demo-accor/frontend:latest
 
   traffic:
     build: ./traffic
-    image: demo-accor/traffic:latest
+    image: ggr-demo-accor/traffic:latest

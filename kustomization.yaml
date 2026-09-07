@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: demo-accor
+namespace: ggr-demo-accor
 
 resources:
   - k8s/namespace.yaml
@@ -36,21 +36,21 @@ configMapGenerator:
 # the project and region. Left registry-agnostic here so the same manifests run
 # against a local cluster.
 images:
-  - name: demo-accor/graphql-bff
-    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/graphql-bff
+  - name: ggr-demo-accor/graphql-bff
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/graphql-bff
     newTag: latest
-  - name: demo-accor/hotel-search-api
-    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/hotel-search-api
+  - name: ggr-demo-accor/hotel-search-api
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/hotel-search-api
     newTag: latest
-  - name: demo-accor/booking-api
-    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/booking-api
+  - name: ggr-demo-accor/booking-api
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/booking-api
     newTag: latest
-  - name: demo-accor/payment-api
-    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/payment-api
+  - name: ggr-demo-accor/payment-api
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/payment-api
     newTag: latest
-  - name: demo-accor/frontend
-    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/frontend
+  - name: ggr-demo-accor/frontend
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/frontend
     newTag: latest
-  - name: demo-accor/traffic
-    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/demo-accor/traffic
+  - name: ggr-demo-accor/traffic
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/traffic
     newTag: latest

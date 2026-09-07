@@ -126,7 +126,7 @@ collector, and applies the manifests.
 Then:
 
 ```bash
-kubectl port-forward -n demo-accor svc/frontend 8090:80
+kubectl port-forward -n ggr-demo-accor svc/frontend 8090:80
 open http://localhost:8090
 ```
 
@@ -204,7 +204,7 @@ The generator produced a few things that could not work, corrected here in case
 the CLI is reused:
 
 - Namespace and image names were `demoAccor` — invalid for both Kubernetes
-  (RFC 1123 requires lowercase) and Docker repositories. Now `demo-accor`.
+  (RFC 1123 requires lowercase) and Docker repositories. Now `ggr-demo-accor`.
 - The PostgreSQL manifest had `imagePullPolicy: Never` on the public
   `postgres:16` image, no credentials, no `shared_preload_libraries`, and never
   mounted its init SQL — so DBM had no query metrics and the schema was never

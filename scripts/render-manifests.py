@@ -11,13 +11,13 @@ Run from the repo root:  python3 scripts/render-manifests.py
 
 import pathlib
 
-NAMESPACE = "demo-accor"
-ENV_TAG = "demo-accor-260907"
+NAMESPACE = "ggr-demo-accor"
+ENV_TAG = "ggr-demo-accor-260907"
 VERSION = "1.0.0"
 
 # Image names stay registry-agnostic here; the kustomization rewrites them to the
 # Artifact Registry path at deploy time.
-IMAGE_PREFIX = "demo-accor"
+IMAGE_PREFIX = "ggr-demo-accor"
 
 DB_NAME = "accor"
 DB_USER = "accor"

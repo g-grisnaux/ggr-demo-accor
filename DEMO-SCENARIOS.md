@@ -7,7 +7,7 @@ pods, not by redeploying, so the before/after lands on the same dashboard.
 **Prerequisites**
 
 ```bash
-kubectl port-forward -n demo-accor svc/frontend 8090:80
+kubectl port-forward -n ggr-demo-accor svc/frontend 8090:80
 ```
 
 The UI is then on <http://localhost:8090> and the GraphQL endpoint is proxied at
@@ -130,7 +130,7 @@ On top of that:
 | RUM session -> backend trace | `allowedTracingUrls` injects `datadog` + `tracecontext` headers on `/graphql` | Configured, not yet verified in a browser |
 | RUM session -> browser logs | Browser Logs SDK stamps `session_id` and `view.id` when RUM is present | Configured, not yet verified in a browser |
 | profiles -> trace | Endpoint profiling, automatic with `DD_PROFILING_ENABLED` | Configured, not yet verified |
-| infrastructure -> APM | `tags.datadoghq.com/*` pod labels, plus `kube_namespace:demo-accor` and `kube_cluster_name:demo-accor` | Configured |
+| infrastructure -> APM | `tags.datadoghq.com/*` pod labels, plus `kube_namespace:ggr-demo-accor` and `kube_cluster_name:ggr-demo-accor` | Configured |
 
 **On metric -> trace, be precise with them.** The custom business metrics are
 DogStatsD counters. They carry `env`/`service`/`version`, so a dashboard widget

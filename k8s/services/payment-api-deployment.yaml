@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: payment-api
-  namespace: demo-accor
+  namespace: ggr-demo-accor
   labels:
     app: payment-api
-    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/env: "ggr-demo-accor-260907"
     tags.datadoghq.com/service: "payment-api"
     tags.datadoghq.com/version: "1.0.0"
 spec:
@@ -17,7 +17,7 @@ spec:
     metadata:
       labels:
         app: payment-api
-        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/env: "ggr-demo-accor-260907"
         tags.datadoghq.com/service: "payment-api"
         tags.datadoghq.com/version: "1.0.0"
       annotations:
@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: payment-api
-          image: demo-accor/payment-api:latest
+          image: ggr-demo-accor/payment-api:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8083

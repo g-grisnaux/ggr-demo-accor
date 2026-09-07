@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: traffic
-  namespace: demo-accor
+  namespace: ggr-demo-accor
   labels:
     app: traffic
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: traffic
-          image: demo-accor/traffic:latest
+          image: ggr-demo-accor/traffic:latest
           imagePullPolicy: IfNotPresent
           args:
             - "--headless"

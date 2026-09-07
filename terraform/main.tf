@@ -23,8 +23,8 @@ resource "google_container_cluster" "demo" {
   # carry through unified service tagging. GCP labels must be lowercase and use
   # dashes/underscores only, which is why the env tag is not reused verbatim.
   resource_labels = {
-    env     = "demo-accor-260907"
-    service = "demo-accor"
+    env     = "ggr-demo-accor-260907"
+    service = "ggr-demo-accor"
     demo    = "accor-bff-observability"
     owner   = "gael-grisnaux"
     managed = "terraform"
@@ -69,14 +69,14 @@ resource "google_container_node_pool" "demo" {
     # Node labels become kubernetes_node tags in Datadog, so the same identity
     # is visible on the infrastructure side.
     labels = {
-      env     = "demo-accor-260907"
-      service = "demo-accor"
+      env     = "ggr-demo-accor-260907"
+      service = "ggr-demo-accor"
       demo    = "accor-bff-observability"
     }
 
     resource_labels = {
-      env     = "demo-accor-260907"
-      service = "demo-accor"
+      env     = "ggr-demo-accor-260907"
+      service = "ggr-demo-accor"
       demo    = "accor-bff-observability"
     }
 

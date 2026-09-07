@@ -1,4 +1,4 @@
-# demo-accor — Accor BFF observability demo
+# ggr-demo-accor — Accor BFF observability demo
 
 ## Instrumentation mode: `ddot`
 
@@ -83,7 +83,7 @@ The following skills are available in the `skills/` directory:
 
 All telemetry must include `env`, `service`, and `version` tags:
 
-- **env**: Set via `DD_ENV` in `.env`. Currently `demo-accor-260907`. Must stay lowercase — Kubernetes namespaces and Docker repository names both reject uppercase.
+- **env**: Set via `DD_ENV` in `.env`. Currently `ggr-demo-accor-260907`. Must stay lowercase — Kubernetes namespaces and Docker repository names both reject uppercase.
 - **service**: Unique per service, consistent across traces/logs/metrics. Set via `DD_SERVICE`.
 - **version**: Set via `DD_VERSION`. Use `1.0.0` or git SHA.
 

@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: booking-api
-  namespace: demo-accor
+  namespace: ggr-demo-accor
   labels:
     app: booking-api
-    tags.datadoghq.com/env: "demo-accor-260907"
+    tags.datadoghq.com/env: "ggr-demo-accor-260907"
     tags.datadoghq.com/service: "booking-api"
     tags.datadoghq.com/version: "1.0.0"
 spec:
@@ -17,7 +17,7 @@ spec:
     metadata:
       labels:
         app: booking-api
-        tags.datadoghq.com/env: "demo-accor-260907"
+        tags.datadoghq.com/env: "ggr-demo-accor-260907"
         tags.datadoghq.com/service: "booking-api"
         tags.datadoghq.com/version: "1.0.0"
       annotations:
@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: booking-api
-          image: demo-accor/booking-api:latest
+          image: ggr-demo-accor/booking-api:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8082

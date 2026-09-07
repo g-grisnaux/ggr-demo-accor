@@ -1,12 +1,12 @@
 datadog:
   apiKeyExistingSecret: datadog-secret
   site: datadoghq.com
-  clusterName: demo-accor
+  clusterName: ggr-demo-accor
   kubelet:
     tlsVerify: false
   env:
     - name: DD_ENV
-      value: "demo-accor-260907"
+      value: "ggr-demo-accor-260907"
   apm:
     portEnabled: true
     socketEnabled: true

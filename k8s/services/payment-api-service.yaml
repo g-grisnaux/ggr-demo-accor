@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: payment-api
-  namespace: demo-accor
+  namespace: ggr-demo-accor
   labels:
     app: payment-api
 spec:
