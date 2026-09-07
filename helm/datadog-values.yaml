@@ -36,3 +36,11 @@ clusterAgent:
   enabled: true
   admissionController:
     mutateUnlabelled: true
+
+# GKE nodes run Container-Optimized OS, where /usr is read-only. Without this
+# the system-probe container dies with `failed to mkdir "/usr/src"` and the
+# whole DaemonSet never becomes ready — which is exactly how the first deploy
+# attempt failed. The switch redirects the kernel-headers mount COS needs.
+providers:
+  gke:
+    cos: true

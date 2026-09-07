@@ -1,30 +1,17 @@
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci || npm install
-COPY . .
-# Vite inlines these at build time, so they must be present during the build
-# rather than injected as container env vars at runtime.
-ARG VITE_DD_RUM_APPLICATION_ID
-ARG VITE_DD_RUM_CLIENT_TOKEN
-ARG VITE_DD_SITE=datadoghq.com
-ARG VITE_DD_SERVICE=all-web
-ARG VITE_DD_ENV
-ARG VITE_DD_VERSION=1.0.0
-ARG VITE_CLIENT_NAME=all-web
-ARG VITE_CLIENT_VERSION=3.4.0
-ENV VITE_DD_RUM_APPLICATION_ID=$VITE_DD_RUM_APPLICATION_ID \
-    VITE_DD_RUM_CLIENT_TOKEN=$VITE_DD_RUM_CLIENT_TOKEN \
-    VITE_DD_SITE=$VITE_DD_SITE \
-    VITE_DD_SERVICE=$VITE_DD_SERVICE \
-    VITE_DD_ENV=$VITE_DD_ENV \
-    VITE_DD_VERSION=$VITE_DD_VERSION \
-    VITE_CLIENT_NAME=$VITE_CLIENT_NAME \
-    VITE_CLIENT_VERSION=$VITE_CLIENT_VERSION
-RUN npm run build
+# Single-stage on purpose.
+#
+# The bundle is HTML/CSS/JS — byte-identical on any architecture — so there is
+# nothing to gain from compiling it inside the image, and a multi-stage
+# cross-platform build could not be exported in this environment at all. The
+# bundle is produced by scripts/deploy-gke.sh (or `npm run build`) before the
+# image is built, and only the nginx layer is architecture-specific.
+#
+# Because the RUM credentials are inlined into the bundle at build time, they
+# are passed to `npm run build` as VITE_* environment variables, not here.
+FROM nginx:1.27
 
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY dist/ /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

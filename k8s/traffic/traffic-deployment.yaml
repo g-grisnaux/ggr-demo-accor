@@ -18,7 +18,7 @@ spec:
       containers:
         - name: traffic
           image: ggr-demo-accor/traffic:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           args:
             - "--headless"
             - "-f"

@@ -25,6 +25,12 @@ NAMESPACE="${NAMESPACE:-ggr-demo-accor}"
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com}"
 REGISTRY_IDENTITY="${REGISTRY_IDENTITY:-service-account}"
 
+# GKE node pools are amd64. Building on an Apple Silicon Mac without pinning the
+# platform produces arm64 images that pass the push and then crashloop on the
+# node with "exec format error" — set explicitly rather than inherited from the
+# build host.
+BUILD_PLATFORM="${BUILD_PLATFORM:-linux/amd64}"
+
 REGISTRY_HOST="${REGION}-docker.pkg.dev"
 IMAGE_PREFIX="${REGISTRY_HOST}/${PROJECT_ID}/${REPOSITORY}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
@@ -93,21 +99,27 @@ else
   gcloud auth configure-docker "$REGISTRY_HOST" --quiet
 fi
 
-log "Building images"
-# The front-end bundle has the RUM credentials compiled into it, so it is built
-# with build args rather than runtime env.
-docker build -t "${IMAGE_PREFIX}/frontend:${IMAGE_TAG}" \
-  --build-arg "VITE_DD_RUM_APPLICATION_ID=${DD_RUM_APPLICATION_ID:-}" \
-  --build-arg "VITE_DD_RUM_CLIENT_TOKEN=${DD_RUM_CLIENT_TOKEN:-}" \
-  --build-arg "VITE_DD_SITE=${DD_SITE:-datadoghq.com}" \
-  --build-arg "VITE_DD_ENV=${DD_ENV}" \
-  --build-arg "VITE_DD_SERVICE=all-web" \
-  ./frontend
+# The front-end bundle is compiled here rather than inside the image. It is
+# HTML/CSS/JS — identical on every architecture — so building it natively is
+# both faster and immune to the cross-platform build problems below. The RUM
+# credentials are inlined by Vite at this point, which is why they are passed
+# as environment variables to the build and not to the container.
+log "Building the front-end bundle"
+( cd frontend && npm ci --silent 2>/dev/null || npm install --silent
+  VITE_DD_RUM_APPLICATION_ID="${DD_RUM_APPLICATION_ID:-}" \
+  VITE_DD_RUM_CLIENT_TOKEN="${DD_RUM_CLIENT_TOKEN:-}" \
+  VITE_DD_SITE="${DD_SITE:-datadoghq.com}" \
+  VITE_DD_ENV="${DD_ENV}" \
+  VITE_DD_SERVICE="all-web" \
+  npm run build )
+
+log "Building images for ${BUILD_PLATFORM}"
+docker build --platform "$BUILD_PLATFORM" -t "${IMAGE_PREFIX}/frontend:${IMAGE_TAG}" ./frontend
 
 for svc in graphql-bff hotel-search-api booking-api payment-api; do
-  docker build -t "${IMAGE_PREFIX}/${svc}:${IMAGE_TAG}" "./services/${svc}"
+  docker build --platform "$BUILD_PLATFORM" -t "${IMAGE_PREFIX}/${svc}:${IMAGE_TAG}" "./services/${svc}"
 done
-docker build -t "${IMAGE_PREFIX}/traffic:${IMAGE_TAG}" ./traffic
+docker build --platform "$BUILD_PLATFORM" -t "${IMAGE_PREFIX}/traffic:${IMAGE_TAG}" ./traffic
 
 log "Pushing images"
 for svc in "${SERVICES[@]}"; do
@@ -144,7 +156,10 @@ kubectl create secret generic postgres-credentials \
 log "Installing the Datadog Agent with the DDOT collector"
 helm repo add datadog https://helm.datadoghq.com >/dev/null 2>&1 || true
 helm repo update datadog >/dev/null
+# Pinned: an unpinned install makes helm pick "the closest available version",
+# which is not something a demo should discover on the day.
 helm upgrade --install datadog datadog/datadog \
+  --version "${DATADOG_CHART_VERSION:-3.242.0}" \
   -f helm/datadog-values.yaml \
   -n "$NAMESPACE" \
   --set datadog.site="${DD_SITE:-datadoghq.com}" \

@@ -199,7 +199,11 @@ spec:
       containers:
         - name: {name}
           image: {IMAGE_PREFIX}/{name}:latest
-          imagePullPolicy: IfNotPresent
+          # Always, not IfNotPresent: the images are published under a mutable
+          # :latest tag, so IfNotPresent makes a node serve whatever it cached
+          # first and silently ignore a rebuild. That is how a fixed image kept
+          # crashlooping with the old binary still in the node cache.
+          imagePullPolicy: Always
           ports:
             - containerPort: {port}
           env:
