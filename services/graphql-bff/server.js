@@ -4,6 +4,24 @@ const tracer = require('dd-trace').init({
   logInjection: true,
 });
 
+// Low-level integrations that add no application meaning to a booking flame
+// graph: dns.lookup on the agent hostname, socket-level net spans, and fs
+// reads. They were the "datadog-agent" spans sitting in the middle of every
+// trace. The http blocklist below covers the agent's own HTTP traffic.
+tracer.use('dns', false);
+tracer.use('net', false);
+tracer.use('fs', false);
+
+// dd-trace instruments its own outbound calls to the agent (profiling upload,
+// remote configuration polling), which puts "datadog-agent" spans in the middle
+// of every booking flame graph. Blocking the agent host keeps the trace to the
+// application's own work.
+tracer.use('http', {
+  client: {
+    blocklist: [process.env.DD_AGENT_HOST || 'localhost'],
+  },
+});
+
 // depth: -1 keeps a span for every field resolution, not just the top level.
 // That per-field granularity is what replaces the field-level view the team
 // reads in Hive today.

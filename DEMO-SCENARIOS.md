@@ -104,6 +104,11 @@ comparison rests on:
 | `payment.authorization` | `status`, `decline_reason`, `method` | Payment funnel health |
 | `booking.rejected` | `error_code`, `decline_reason` | Where bookings are lost |
 
+**Datadog lowercases metric tag values**, so a business code emitted as
+`INVALID_DATE` is filtered as `error_code:invalid_date` on a metric, while the
+same code stays uppercase in log attributes and span tags. Worth knowing before
+you type a filter on stage.
+
 The load generator sends a deliberate mix of `all-web 3.4.0`, `all-ios 6.2.0`,
 `all-ios 6.1.0` and `all-android 5.9.0`, and the `6.1.0` cohort still requests
 the deprecated `Hotel.thumbnailUrl`. Filtering `bff.graphql.field.usage` on

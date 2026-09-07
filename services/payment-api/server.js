@@ -1,4 +1,20 @@
-require('dd-trace').init({ logInjection: true });
+const tracer = require('dd-trace').init({ logInjection: true });
+
+// Low-level integrations that add no application meaning to a booking flame
+// graph: dns.lookup on the agent hostname, socket-level net spans, and fs
+// reads. They were the "datadog-agent" spans sitting in the middle of every
+// trace. The http blocklist below covers the agent's own HTTP traffic.
+tracer.use('dns', false);
+tracer.use('net', false);
+tracer.use('fs', false);
+
+// Keeps dd-trace's own agent traffic (profiling, remote config) out of the
+// application flame graphs.
+tracer.use('http', {
+  client: {
+    blocklist: [process.env.DD_AGENT_HOST || 'localhost'],
+  },
+});
 
 const express = require('express');
 const pino = require('pino');
