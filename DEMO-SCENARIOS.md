@@ -116,6 +116,37 @@ the deprecated `Hotel.thumbnailUrl`. Filtering `bff.graphql.field.usage` on
 
 ---
 
+## Pivoting between metrics, logs and traces
+
+Every signal carries the same `env` / `service` / `version` (unified service
+tagging), which is what makes the scope of one widget transfer to another view.
+On top of that:
+
+| Pivot | Mechanism | Verified |
+|---|---|---|
+| trace -> logs | `dd.trace_id` / `dd.span_id` injected into the JSON logs by each tracer | Yes — querying logs by `trace_id` returns the log |
+| logs -> trace | Same ids, consumed by the log intake into the reserved `trace_id` | Yes |
+| trace -> DBM query sample & plan | `DD_DBM_PROPAGATION_MODE=full` makes each tracer prepend a SQL comment carrying `traceparent` | Yes — verified on all three tracers (Java, Python, Node) |
+| RUM session -> backend trace | `allowedTracingUrls` injects `datadog` + `tracecontext` headers on `/graphql` | Configured, not yet verified in a browser |
+| RUM session -> browser logs | Browser Logs SDK stamps `session_id` and `view.id` when RUM is present | Configured, not yet verified in a browser |
+| profiles -> trace | Endpoint profiling, automatic with `DD_PROFILING_ENABLED` | Configured, not yet verified |
+| infrastructure -> APM | `tags.datadoghq.com/*` pod labels, plus `kube_namespace:demo-accor` and `kube_cluster_name:demo-accor` | Configured |
+
+**On metric -> trace, be precise with them.** The custom business metrics are
+DogStatsD counters. They carry `env`/`service`/`version`, so a dashboard widget
+scopes cleanly into APM — but a counter has no per-request identity, so there is
+no click-through from one data point to one trace. That is a property of
+DogStatsD, not a gap in the setup.
+
+The per-request pivot on the same dimension exists, through span tags: the BFF
+also puts `graphql.error.code`, `graphql.error.kind` and `graphql.operation.name`
+on the request span. Building a **span-based metric** on `graphql.error.code` in
+the Datadog UI gives the same breakdown as `bff.graphql.errors` *and* keeps the
+click-through to the underlying traces. Worth showing both and explaining the
+trade-off — it lands better than pretending a StatsD counter can do it.
+
+---
+
 ## Honest limits of this demo
 
 State these rather than let them be discovered on stage:

@@ -1,3 +1,4 @@
+import { datadogLogs } from '@datadog/browser-logs';
 import { datadogRum } from '@datadog/browser-rum';
 
 // Client identity travels on every GraphQL call. The BFF turns these headers
@@ -67,6 +68,17 @@ export async function graphql<T>(
         error_kind: error.kind,
       });
     }
+
+    // The same error_code vocabulary the backend emits on bff.graphql.errors, so
+    // a spike on the metric can be filtered down to the front-end logs and the
+    // sessions that hit it without translating between two taxonomies.
+    datadogLogs.logger.warn('graphql operation rejected', {
+      operation: operationName,
+      error_code: error.code,
+      error_kind: error.kind,
+      decline_reason: error.declineReason,
+    });
+
     throw error;
   }
 

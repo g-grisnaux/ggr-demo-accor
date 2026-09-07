@@ -46,6 +46,8 @@ spec:
               value: "datadog,tracecontext"
             - name: PORT
               value: "8082"
+            - name: DD_DBM_PROPAGATION_MODE
+              value: "full"
             - name: PAYMENT_URL
               value: "http://payment-api:8083"
             - name: HOTEL_SEARCH_URL

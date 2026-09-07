@@ -46,6 +46,8 @@ spec:
               value: "datadog,tracecontext"
             - name: PORT
               value: "8081"
+            - name: DD_DBM_PROPAGATION_MODE
+              value: "full"
             - name: HOTEL_SEARCH_SLOW_MODE
               value: "false"
             - name: HOTEL_SEARCH_EXPENSIVE_RANKING

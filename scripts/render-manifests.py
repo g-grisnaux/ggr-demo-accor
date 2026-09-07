@@ -43,6 +43,10 @@ SERVICES = [
         "public": False,
         "needs_db": True,
         "env": {
+            # Injects the trace context as a SQL comment, which is what links an
+            # APM span to its DBM query sample and execution plan. Without it you
+            # get postgresql.query spans and DBM samples that cannot be joined.
+            "DD_DBM_PROPAGATION_MODE": "full",
             "HOTEL_SEARCH_SLOW_MODE": "false",
             "HOTEL_SEARCH_EXPENSIVE_RANKING": "false",
             "HOTEL_SEARCH_RANKING_PASSES": "60000",
@@ -59,6 +63,7 @@ SERVICES = [
         "public": False,
         "needs_db": True,
         "env": {
+            "DD_DBM_PROPAGATION_MODE": "full",
             "PAYMENT_URL": "http://payment-api:8083",
             "HOTEL_SEARCH_URL": "http://hotel-search-api:8081",
         },
@@ -70,7 +75,10 @@ SERVICES = [
         "log_source": "nodejs",
         "public": False,
         "needs_db": True,
-        "env": {"PAYMENT_DECLINE_RATE": "0.04"},
+        "env": {
+            "DD_DBM_PROPAGATION_MODE": "full",
+            "PAYMENT_DECLINE_RATE": "0.04",
+        },
         "resources": {"cpu": "200m", "memory": "256Mi", "cpu_limit": "1", "memory_limit": "512Mi"},
     },
 ]

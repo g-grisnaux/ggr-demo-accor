@@ -46,6 +46,8 @@ spec:
               value: "datadog,tracecontext"
             - name: PORT
               value: "8083"
+            - name: DD_DBM_PROPAGATION_MODE
+              value: "full"
             - name: PAYMENT_DECLINE_RATE
               value: "0.04"
             - name: DATABASE_URL

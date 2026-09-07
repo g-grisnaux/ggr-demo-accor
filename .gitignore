@@ -6,3 +6,13 @@ build/
 __pycache__/
 *.pyc
 dist/
+
+# Terraform: provider binaries are large and platform-specific. The lock file
+# is committed on purpose so provider versions are reproducible.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# TypeScript incremental build cache
+*.tsbuildinfo
