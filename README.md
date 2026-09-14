@@ -10,6 +10,8 @@ from a GraphQL operation into the faulty REST call, error rates sliced by
 are not maintained by hand in Terraform.
 
 - **[DEMO-SCENARIOS.md](DEMO-SCENARIOS.md)** — the demo script. Start there.
+- **[BITS-INVESTIGATION.md](BITS-INVESTIGATION.md)** — demo flow, prompts for Bits
+  Investigation, and the ground-truth sheet to grade its answer against.
 - **[AGENTS.md](AGENTS.md)** — scaffold conventions and instrumentation notes.
 
 ---
