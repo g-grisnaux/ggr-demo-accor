@@ -8,8 +8,9 @@ output "dashboard_chain_url" {
 
 output "monitor_ids" {
   value = {
-    resolver_error_anomaly      = datadog_monitor.resolver_error_anomaly.id
-    business_error_code_anomaly = datadog_monitor.business_error_code_anomaly.id
-    naive_global_error_rate     = datadog_monitor.naive_global_error_rate.id
+    fixed_global_error_rate     = datadog_monitor.fixed_global_error_rate.id
+    dynamic_payment_declines    = datadog_monitor.dynamic_payment_declines.id
+    dynamic_business_error_code = datadog_monitor.dynamic_business_error_code.id
+    dynamic_resolver_errors     = datadog_monitor.dynamic_resolver_errors.id
   }
 }

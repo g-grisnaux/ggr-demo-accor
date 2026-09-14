@@ -35,11 +35,13 @@ télémétrie métier ne remonte pas et il faut le savoir **avant**, pas devant 
 **T-5 min, juste avant d'entrer** :
 
 ```bash
-scripts/scenario.sh payment-storm
+kubectl exec -n ggr-demo-accor deploy/payment-api -- \
+  curl -sS -X POST "http://localhost:8083/admin/scenario?declineRate=1.0"
 ```
 
-Le monitor métier met environ 4 minutes à basculer. Tu veux qu'il soit déjà
-rouge quand tu arrives à l'acte 2.
+**Utilise 1.0, pas le `payment-storm` à 45 %.** Raison mesurée : à 55 % le
+monitor dynamique a mis 9 minutes à basculer au premier essai, et pas du tout au
+troisième. À 100 % l'écart est sans ambiguïté. Compte tout de même 5 minutes.
 
 ---
 
@@ -47,8 +49,9 @@ rouge quand tu arrives à l'acte 2.
 
 ### Clics
 
-1. **Onglet 1 — Monitors.** Ouvre
-   `[ALL BFF] (contrast) Global GraphQL error rate over 5%`.
+1. **Onglet 1 — Monitors.** La liste montre déjà la comparaison : un
+   `(seuil fixe)` et trois `(seuil dynamique)`. Ouvre
+   `[ALL BFF] (seuil fixe) Taux d'erreur GraphQL global > 5%`.
 2. Montre l'historique du monitor : rouge, en continu.
 
 ### Ce que tu dis
@@ -68,9 +71,25 @@ Laisse le silence. Puis :
 4. Descends jusqu'au groupe orange **« Per business error code »**.
 5. Pointe le graphe **« Errors by business code »**.
 
-> « Voilà pourquoi il est rouge. Cette bande stable, c'est `INVALID_DATE` — des
-> clients qui envoient une date de départ avant la date d'arrivée. Sur un site
-> de réservation, c'est le fonctionnement normal. »
+> « Voilà pourquoi il est rouge. Ce chiffre additionne deux choses de nature
+> complètement différente : des rejets métier — chambre complète, tarif expiré,
+> carte refusée — et de vraies pannes. dd-trace marque le span `graphql.execute`
+> en erreur dès que la réponse GraphQL contient des erreurs, sans distinguer les
+> deux.
+>
+> Ici le fond est dominé par des rejets métier, et il suffit à dépasser 5 % en
+> permanence. Chez vous le mix sera différent, vos volumes aussi. Mais la
+> propriété est la même : dès qu'il existe un fond de rejets métier non nul, un
+> seuil global est soit toujours rouge, soit réglé si haut qu'il rate les vraies
+> pannes. Il n'y a pas de bonne valeur, parce que le problème est la dimension
+> manquante, pas le seuil.
+>
+> **Quel est votre taux de rejets métier aujourd'hui ?** »
+
+Cette dernière question est volontaire : elle transforme le chiffre en sujet de
+découverte, et elle t'évite de prétendre que 9 % de dates invalides serait
+réaliste — ça ne l'est pas, c'est une propriété de mon générateur de charge, et
+un ingénieur de leur équipe le verra en trois secondes.
 
 6. Remonte au groupe bleu, pointe la tuile **« Business rejections, % of
    operations »**.
@@ -91,8 +110,8 @@ Laisse le silence. Puis :
 ### Clics
 
 1. **Retour onglet 1 — Monitors.** Ouvre
-   `[ALL BFF] Anomalous rate on a business error code`.
-2. Il est en **Alert**, et le titre de l'alerte nomme `PAYMENT_DECLINED`.
+   `[ALL BFF] (seuil dynamique) Refus de paiement anormaux`.
+2. Il est en **Alert**. Aucun seuil n'y est écrit.
 
 ### Ce que tu dis
 
