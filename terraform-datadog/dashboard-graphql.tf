@@ -74,11 +74,29 @@ resource "datadog_dashboard" "graphql_health" {
 
       widget {
         query_value_definition {
-          title     = "Apdex"
+          title     = "p99 latency (s)"
           autoscale = true
-          precision = 2
+          precision = 3
           request {
-            q          = "avg:trace.express.request.apdex{$env,service:${var.bff_service}}"
+            q          = "p99:trace.express.request{$env,service:${var.bff_service}}"
+            aggregator = "avg"
+          }
+        }
+      }
+
+      widget {
+        query_value_definition {
+          # Replaces an Apdex tile, which stayed empty: Datadog only computes
+          # apdex for a service that has a latency threshold configured, and
+          # graphql-bff has none. This number is more useful to this audience
+          # anyway — it is the share of traffic a global error-rate threshold
+          # would alert on while nothing is actually broken.
+          title     = "Business rejections, % of operations"
+          autoscale = false
+          precision = 1
+          custom_unit = "%"
+          request {
+            q          = "100*sum:bff.graphql.errors{$env,error_kind:business}.as_count()/sum:bff.graphql.operation{$env}.as_count()"
             aggregator = "avg"
           }
         }

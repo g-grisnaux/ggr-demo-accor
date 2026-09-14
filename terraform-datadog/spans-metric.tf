@@ -45,4 +45,17 @@ resource "datadog_spans_metric" "graphql_business_errors" {
     path     = "@graphql.operation.name"
     tag_name = "operation"
   }
+
+  # A span-based metric exposes ONLY the dimensions declared here — it does not
+  # inherit env or service from the spans. Without these two the dashboard
+  # widget, which filters on $env and service, matched nothing at all.
+  group_by {
+    path     = "@env"
+    tag_name = "env"
+  }
+
+  group_by {
+    path     = "@service"
+    tag_name = "service"
+  }
 }

@@ -14,6 +14,99 @@ pods, not by redeploying, so the before/after lands on the same dashboard.
 | Monitor: anomalous rate per business error code | `321507071` — `basic`, history started today |
 | Monitor: global error rate > 5% (counter-example) | `321507068` — already firing on the normal invalid-date background |
 
+---
+
+## The demo flow — which monitor you start from, and why
+
+The order matters, and getting it wrong makes the argument collapse. Two
+separate stories, one monitor each.
+
+### Act 1 — the alert they have learned to ignore
+
+Nothing running, system healthy. Open **Monitors → `[ALL BFF] (contrast) Global
+GraphQL error rate over 5%`**. It is red, and it has been red for days.
+
+Ask the room what is broken. Nothing is. Follow the dashboard link in the alert
+and scroll to the business-error group: `invalid_date` is a flat background of
+clients sending reversed date ranges. The tile "Business rejections, % of
+operations" puts a number on it — around 6 to 10%, permanently above a 5%
+threshold.
+
+**No investigation happens in this act.** That is the whole point: a global
+threshold on a GraphQL error rate fires on business as usual, so nobody reads it
+any more.
+
+### Act 2 — the alert that means something
+
+Trigger the storm **four to five minutes before you need it**. Measured on this
+stack: raised at 08:08:38Z, the monitor went to Alert at 08:12:51Z.
+
+```bash
+scripts/scenario.sh payment-storm
+```
+
+**Monitors → `[ALL BFF] Anomalous rate on a business error code`** goes from OK
+to Alert, and the alert names `PAYMENT_DECLINED`.
+
+The line that carries the argument: the naive monitor is red at this moment too
+— but it was *already* red, so it carries no information. Only the business
+monitor has a delta, and that delta names the failing business rule. You know
+which team to wake before opening a single trace.
+
+Then follow its dashboard link and drill:
+
+1. **"Errors by business code (span-based)"** — the spike on `payment_declined`
+   while `invalid_date` does not move.
+2. **Context menu → View traces** — native pivot, because this widget is built
+   on a span-based metric.
+3. **A failing trace** — `graphql-bff` → `booking-api` → `payment-api`, with
+   `decline_reason` on the payment span.
+4. **The trace's Logs tab** — five logs, one from each service it touched.
+5. **A SQL span → View query in DBM** — the execution plan.
+
+
+### Why the traces show as OK, not error
+
+Expect this question, and have the answer ready — it is an argument, not a bug.
+
+A GraphQL operation that fails returns **HTTP 200** with the errors in the
+response body. That is the GraphQL specification, not a Datadog quirk. So the
+root span of the trace, `POST /graphql`, sees a 200 and is marked `ok`, and the
+trace list shows the status of the root span.
+
+Inside the trace, the GraphQL spans *are* marked as errors — measured on a
+business-error trace: `Query.searchHotels`, `searchHotels:SearchResult!` and the
+`graphql.execute` span all carry `status=error`, while `POST /graphql` carries
+`status=ok`.
+
+The point to make: **an HTTP-level error rate is structurally blind to GraphQL
+failures.** Any monitoring that watches status codes on a GraphQL endpoint sees
+a permanently healthy service. That is precisely why the failing business rule
+has to be its own dimension, which is what `bff.graphql.errors` by `error_code`
+provides.
+
+To find these traces, filter on `@graphql.error.code:*` rather than on
+`status:error`.
+
+Note also that the BFF deliberately clears the error flag on the root span for
+`kind=BUSINESS`, so a declined card does not inflate the APM error rate of the
+service. Genuine upstream failures are a different case — see the caveat at the
+end of this document.
+
+### Act 3 — the investigation
+
+```bash
+scripts/scenario.sh reset
+scripts/scenario.sh booking-outage
+```
+
+The *same* business monitor fires, on a different code:
+`UPSTREAM_UNAVAILABLE`. Same alert, completely different cause, and this time
+the trace is the only way to find it. See "The investigation scenario" below.
+
+Three distinct causes, one monitor, three different codes — that is the summary
+sentence.
+
 **Prerequisites**
 
 ```bash
@@ -223,3 +316,12 @@ State these rather than let them be discovered on stage:
 - **GraphQL observability is operation- and resolver-level via APM spans and
   custom metrics.** It is not a feature-for-feature Hive replacement — schema
   registry and schema-change tracking are not covered.
+- **Feature Flags is not demonstrable.** The Datadog OpenFeature provider times
+  out at BFF startup, so the dataloader flag is not actually served; the N+1
+  scenario runs off its environment override instead.
+- **Root spans are `ok` even for genuine upstream failures**, for the same
+  HTTP-200 reason described above. During `booking-outage` the trace list shows
+  healthy-looking traces. Marking the root span as an error for
+  `kind=UPSTREAM` and `kind=SERVER`, while leaving `BUSINESS` clean, would fix
+  that properly — it is a one-line change in `src/telemetry.js` plus a BFF
+  rollout, and has not been applied.
