@@ -57,6 +57,12 @@ Scenarios
   n-plus-one-on       graphql-bff: availability dataloader disabled
   n-plus-one-off      graphql-bff: dataloader re-enabled
                       -> 25 sibling REST spans per query instead of 1
+
+  booking-outage      hotel-search-api: 6s delay on the availability endpoints
+  booking-outage-off  back to no delay
+                      -> createBooking starts failing with UPSTREAM_UNAVAILABLE.
+                         The cause is two hops from the symptom, and payment-api
+                         is the obvious suspect while being entirely healthy.
 EOF
     ;;
 
@@ -98,9 +104,22 @@ EOF
     dataloader false
     ;;
 
+  booking-outage)
+    # 6s exceeds booking-api's 5s timeout on the availability call, so the
+    # booking fails before payment is ever contacted.
+    log "Delaying hotel-search-api availability by 6s"
+    hotel_scenario "availabilityDelayMs=6000"
+    warn "createBooking will start failing with UPSTREAM_UNAVAILABLE within seconds."
+    warn "Note that payment-api stays healthy — that is the point of the scenario."
+    ;;
+  booking-outage-off)
+    log "Removing the availability delay"
+    hotel_scenario "availabilityDelayMs=0"
+    ;;
+
   reset)
     log "Resetting every scenario to baseline"
-    hotel_scenario "slowSearch=false&expensiveRanking=false"
+    hotel_scenario "slowSearch=false&expensiveRanking=false&availabilityDelayMs=0"
     payment_scenario "declineRate=0.04"
     dataloader false
     ;;

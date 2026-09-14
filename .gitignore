@@ -16,3 +16,9 @@ crash.log
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Datadog module state and any local var files
+terraform-datadog/.terraform/
+terraform-datadog/*.tfstate
+terraform-datadog/*.tfstate.*
+terraform-datadog/terraform.tfvars

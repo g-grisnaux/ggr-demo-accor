@@ -26,17 +26,19 @@ public class AdminController {
     }
 
     @GetMapping("/admin/scenario")
-    public Map<String, Boolean> current() {
+    public Map<String, Object> current() {
         return Map.of(
                 "slow_search", controls.isSlowSearch(),
-                "expensive_ranking", controls.isExpensiveRanking()
+                "expensive_ranking", controls.isExpensiveRanking(),
+                "availability_delay_ms", controls.getAvailabilityDelayMs()
         );
     }
 
     @PostMapping("/admin/scenario")
-    public Map<String, Boolean> update(
+    public Map<String, Object> update(
             @RequestParam(required = false) Boolean slowSearch,
-            @RequestParam(required = false) Boolean expensiveRanking
+            @RequestParam(required = false) Boolean expensiveRanking,
+            @RequestParam(required = false) Integer availabilityDelayMs
     ) {
         if (slowSearch != null) {
             controls.setSlowSearch(slowSearch);
@@ -45,6 +47,10 @@ public class AdminController {
         if (expensiveRanking != null) {
             controls.setExpensiveRanking(expensiveRanking);
             log.warn("demo scenario changed expensive_ranking={}", expensiveRanking);
+        }
+        if (availabilityDelayMs != null) {
+            controls.setAvailabilityDelayMs(availabilityDelayMs);
+            log.warn("demo scenario changed availability_delay_ms={}", availabilityDelayMs);
         }
         return current();
     }

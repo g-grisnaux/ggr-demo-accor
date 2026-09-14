@@ -10,6 +10,14 @@ datadog:
   apm:
     portEnabled: true
     socketEnabled: true
+  # The trace-agent gets a hostPort from apm.portEnabled, which is why APM
+  # worked from the start. DogStatsD does NOT get one by default, so every
+  # custom metric the services sent to DD_AGENT_HOST:8125 was dropped silently
+  # — UDP gives no feedback. This is what makes the business error-code metrics
+  # reach Datadog at all.
+  dogstatsd:
+    useHostPort: true
+    nonLocalTraffic: true
   logs:
     enabled: true
     containerCollectAll: true

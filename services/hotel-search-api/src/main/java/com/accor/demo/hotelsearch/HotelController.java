@@ -102,10 +102,19 @@ public class HotelController {
             ));
         }
 
+        controls.applyAvailabilityDelay();
+
         List<Availability> found = repository.availabilityFor(List.of(hotelId), from, to);
-        return ResponseEntity.ok(found.isEmpty()
+        Availability result = found.isEmpty()
                 ? new Availability(hotelId, false, 0, List.of())
-                : found.get(0));
+                : found.get(0);
+
+        Span.current().setAttribute("availability.hotel_id", hotelId);
+        Span.current().setAttribute("availability.delay_ms", controls.getAvailabilityDelayMs());
+        log.info("availability resolved hotel_id={} available={} rooms_left={} delay_ms={}",
+                hotelId, result.available(), result.roomsLeft(), controls.getAvailabilityDelayMs());
+
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -138,7 +147,16 @@ public class HotelController {
             ));
         }
 
+        controls.applyAvailabilityDelay();
+
         Span.current().setAttribute("availability.batch_size", ids.size());
-        return ResponseEntity.ok(new AvailabilityBatchResponse(repository.availabilityFor(ids, from, to)));
+        Span.current().setAttribute("availability.delay_ms", controls.getAvailabilityDelayMs());
+
+        List<Availability> batch = repository.availabilityFor(ids, from, to);
+        long bookable = batch.stream().filter(Availability::available).count();
+        log.info("availability batch resolved batch_size={} bookable={} delay_ms={}",
+                ids.size(), bookable, controls.getAvailabilityDelayMs());
+
+        return ResponseEntity.ok(new AvailabilityBatchResponse(batch));
     }
 }

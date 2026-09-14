@@ -77,10 +77,30 @@ function datadogGraphQLPlugin(logger) {
 
         async willSendResponse(ctx) {
           const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+          const operationName = ctx.operationName || 'anonymous';
+
           statsd.histogram('bff.graphql.operation.duration', elapsedMs, {
-            operation: ctx.operationName || 'anonymous',
+            operation: operationName,
             client_name: clientName,
           });
+
+          // One log line per operation, success or not. Without it the BFF is
+          // silent on the happy path, so opening "Logs" from a successful trace
+          // shows nothing from the entry point — the service that owns the
+          // public contract is exactly the one you want to read first.
+          const errors = ctx.errors || [];
+          logger.info(
+            {
+              operation: operationName,
+              operation_type: ctx.operation?.operation || 'unknown',
+              duration_ms: Math.round(elapsedMs * 100) / 100,
+              client_name: clientName,
+              client_version: clientVersion,
+              error_count: errors.length,
+              error_code: errors.length ? errorCodeOf(errors[0]) : null,
+            },
+            'graphql operation completed'
+          );
         },
       };
     },
