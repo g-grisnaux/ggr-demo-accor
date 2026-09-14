@@ -286,9 +286,9 @@ On top of that:
 | trace -> logs | `dd.trace_id` / `dd.span_id` injected into the JSON logs by each tracer. Every service logs once per request, so a trace always has a log from each service it touched. | Yes — 5 logs from all 4 services on every sampled createBooking trace |
 | logs -> trace | Same ids, consumed by the log intake into the reserved `trace_id` | Yes |
 | trace -> DBM query sample & plan | `DD_DBM_PROPAGATION_MODE=full` makes each tracer prepend a SQL comment carrying `traceparent` | Yes — verified on all three tracers (Java, Python, Node) |
-| RUM session -> backend trace | `allowedTracingUrls` injects `datadog` + `tracecontext` headers on `/graphql` | Configured, not yet verified in a browser |
+| RUM session -> backend trace | `allowedTracingUrls` injects `datadog` + `tracecontext` headers on `/graphql` | **Yes** — 8 of 8 sampled RUM fetch resources carry a trace id whose backend trace is findable |
 | metric -> trace | DogStatsD counters carry env/service/version so a widget scopes into APM, but a counter has no per-request identity. The per-request pivot is a span-based metric on `graphql.error.code`. | Metrics flowing; span-based metric not created |
-| RUM session -> browser logs | Browser Logs SDK stamps `session_id` and `view.id` when RUM is present | Configured, not yet verified in a browser |
+| RUM session -> browser logs | Browser Logs SDK stamps `session_id` and `view.id` when RUM is present | Sessions now exist; stamping not individually verified |
 | profiles -> trace | Endpoint profiling, automatic with `DD_PROFILING_ENABLED` | Configured, not yet verified |
 | infrastructure -> APM | `tags.datadoghq.com/*` pod labels, plus `kube_namespace:ggr-demo-accor` and `kube_cluster_name:ggr-demo-accor` | Configured |
 
