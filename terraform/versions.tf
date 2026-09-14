@@ -13,8 +13,8 @@ terraform {
   # a matter of uncommenting this and running `terraform init -migrate-state`.
   #
   # backend "gcs" {
-  #   bucket                      = "datadog-ese-sandbox-tfstate-ggr-demo-accor"
+  #   bucket                      = "<project>-tfstate-ggr-demo-accor"
   #   prefix                      = "ggr-demo-accor"
-  #   impersonate_service_account = "gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com"
+  #   impersonate_service_account = "<service-account>@<project>.iam.gserviceaccount.com"
   # }
 }
