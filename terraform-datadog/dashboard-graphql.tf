@@ -158,7 +158,7 @@ resource "datadog_dashboard" "graphql_health" {
 
       widget {
         note_definition {
-          content          = "These widgets are fed by DogStatsD from `src/telemetry.js`. They stay empty until `datadog.dogstatsd.useHostPort` is enabled on the Datadog Agent."
+          content          = "Fed by DogStatsD from `src/telemetry.js`. Each query is scoped to `service:graphql-bff` on purpose: Datadog only enables the **View traces / View logs / View profiles** pivots when a widget query resolves to a concrete service. Scoping on `env` alone leaves those menu entries greyed out."
           background_color = "gray"
           font_size        = "12"
           text_align       = "left"
@@ -171,7 +171,7 @@ resource "datadog_dashboard" "graphql_health" {
           title       = "GraphQL errors by business code"
           show_legend = true
           request {
-            q            = "sum:bff.graphql.errors{$env}by{error_code}.as_count()"
+            q            = "sum:bff.graphql.errors{$env,service:${var.bff_service}}by{error_code}.as_count()"
             display_type = "bars"
             style { palette = "warm" }
           }
@@ -183,7 +183,7 @@ resource "datadog_dashboard" "graphql_health" {
           title       = "Errors by kind — BUSINESS vs UPSTREAM vs SERVER"
           show_legend = true
           request {
-            q            = "sum:bff.graphql.errors{$env}by{error_kind}.as_count()"
+            q            = "sum:bff.graphql.errors{$env,service:${var.bff_service}}by{error_kind}.as_count()"
             display_type = "area"
             style { palette = "dog_classic" }
           }
@@ -194,7 +194,7 @@ resource "datadog_dashboard" "graphql_health" {
         toplist_definition {
           title = "Which upstream caused the error"
           request {
-            q = "top(sum:bff.graphql.errors{$env}by{upstream_service}.as_count(), 10, 'sum', 'desc')"
+            q = "top(sum:bff.graphql.errors{$env,service:${var.bff_service}}by{upstream_service}.as_count(), 10, 'sum', 'desc')"
           }
         }
       }
@@ -204,7 +204,7 @@ resource "datadog_dashboard" "graphql_health" {
           title       = "Operations by client name and version"
           show_legend = true
           request {
-            q            = "sum:bff.graphql.operation{$env}by{client_name,client_version}.as_count()"
+            q            = "sum:bff.graphql.operation{$env,service:${var.bff_service}}by{client_name,client_version}.as_count()"
             display_type = "area"
             style { palette = "cool" }
           }
@@ -215,7 +215,7 @@ resource "datadog_dashboard" "graphql_health" {
         toplist_definition {
           title = "Deprecated field usage by client version — when can thumbnailUrl go?"
           request {
-            q = "top(sum:bff.graphql.field.usage{$env,deprecated:true}by{field,client_version}.as_count(), 10, 'sum', 'desc')"
+            q = "top(sum:bff.graphql.field.usage{$env,service:${var.bff_service},deprecated:true}by{field,client_version}.as_count(), 10, 'sum', 'desc')"
           }
         }
       }

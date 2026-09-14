@@ -22,8 +22,11 @@ resource "datadog_monitor" "resolver_error_anomaly" {
     GraphQL error rate: a spike on `mutation.createbooking` and a spike on
     `query.searchhotels` have different causes and different owners.
 
-    Start from APM, open a failing trace, and follow it into the downstream REST
-    service. Notify: @${var.notification_handle}
+    Start here: [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id})
+    Then, for where the time goes across the chain: [BFF to REST chain latency](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.bff_rest_chain.id})
+
+    Open a failing trace from the per-resolver widget and follow it into the
+    downstream REST service. Notify: @${var.notification_handle}
   EOT
 
   # anomalies() with agile: seasonal, tolerant of level shifts. 7 days of
@@ -52,8 +55,12 @@ resource "datadog_monitor" "business_error_code_anomaly" {
     `INVALID_DATE` is a steady background of client mistakes; `PAYMENT_DECLINED`
     moving is a partner problem. They must never share an alert.
 
-    Pivot: dashboard "ALL BFF — GraphQL operation health", then the traces
-    carrying the same `graphql.error.code` span tag. Notify: @${var.notification_handle}
+    Start here: [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id}) — the
+    "Per business error code" group at the bottom.
+
+    From that widget, the context menu offers **View traces** and **View logs**,
+    which carry the env and service scope straight into APM and Logs.
+    Notify: @${var.notification_handle}
   EOT
 
   # basic: no seasonality assumed. Correct while the metric has little history,
@@ -86,6 +93,9 @@ resource "datadog_monitor" "naive_global_error_rate" {
     Kept deliberately as a counter-example. It cannot distinguish a client
     sending a reversed date range from a payment partner failing, which is why
     a single global threshold produces either noise or silence.
+
+    The answer to it: [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id}),
+    the "Per business error code" group.
     Notify: @${var.notification_handle}
   EOT
 
