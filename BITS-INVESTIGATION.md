@@ -168,3 +168,61 @@ never called.
 - **The trace and log links on the business-code widgets are hand-wired.**
   Datadog greys out its own trace pivot on those widgets and the cause could
   not be established; every link was verified by hand instead.
+
+---
+
+## Part 5 — Source code integration: what Bits is missing
+
+Bits reports `Unknown repository` for `graphql-bff` and cannot finish. That is
+correct behaviour, not a bug: Datadog's Source Code Integration is not set up on
+this project. Three things are missing, not one.
+
+1. **There is no git remote.** The repository is local only — it was created
+   during this work and never pushed. `datadog-ci git-metadata upload` reports a
+   repository URL and a commit SHA, so with no remote there is nothing to
+   report.
+2. **The services carry no git tags.** Datadog links a span to a line of code
+   through `git.commit.sha` and `git.repository_url` on the telemetry, which
+   come from `DD_GIT_REPOSITORY_URL` and `DD_GIT_COMMIT_SHA` at build or run
+   time. Neither is set anywhere, so even with metadata uploaded the traces
+   would not point at it.
+3. **`datadog-ci` is not installed.**
+
+### What it would take
+
+| Étape | Coût | Remarque |
+|---|---|---|
+| Créer un dépôt distant et pousser | 10 min | **Décision à prendre** : cela publie le code. L'historique a été audité, `.env` n'y a jamais été commité et aucun secret n'y apparaît. |
+| `npm i -g @datadog/datadog-ci` puis `datadog-ci git-metadata upload` | 5 min | |
+| Ajouter `DD_GIT_*` aux manifests, rebuild des 4 images, redéploiement | 30-40 min | Cloud Build plus rollout |
+
+Compter une heure, et le dernier point touche au déploiement.
+
+### Ce que ça change, et ce que ça ne change pas
+
+Sans intégration du code source, Bits travaille **sur la télémétrie seule** :
+métriques, traces, logs, profils. Le chemin d'enquête conçu pour cette démo —
+code d'erreur métier, puis trace, puis logs des services traversés — ne dépend
+pas du code source. Les cinq constats de la fiche ci-dessus sont tous
+atteignables sans.
+
+Ce qu'on perd : les fonctions liées au code — remonter à la ligne fautive,
+proposer un correctif, relier un déploiement à un commit. C'est appréciable,
+mais ce n'est pas ce qui répond à « quelle API REST est fautive ».
+
+### Recommandation pour demain
+
+Ne pas le monter dans l'urgence. Deux raisons : une heure de travail la veille,
+dont un rebuild complet, pour une fonctionnalité annexe au récit ; et pousser le
+code sur un dépôt distant est une décision qui mérite mieux qu'une décision
+prise à la hâte.
+
+À la place, l'annoncer franchement s'ils posent la question :
+
+> « L'intégration du code source n'est pas branchée sur cet environnement, donc
+> Bits raisonne ici sur la télémétrie seule — métriques, traces, logs. Branchée,
+> elle ajoute le lien vers la ligne de code et le commit. C'est une commande
+> `datadog-ci` dans votre CI, pas un chantier. »
+
+C'est vrai, c'est vérifiable, et ça vaut mieux qu'une démo à moitié câblée qui
+échoue devant eux.

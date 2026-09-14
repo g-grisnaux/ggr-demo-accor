@@ -45,6 +45,87 @@ troisième. À 100 % l'écart est sans ambiguïté. Compte tout de même 5 minut
 
 ---
 
+---
+
+## Acte 0 — présenter l'environnement (3 min)
+
+À dire en ouverture, avant de toucher à Datadog. L'objectif est qu'ils
+reconnaissent leur propre architecture, pas qu'ils admirent la nôtre.
+
+> « J'ai reproduit votre architecture, pas une application de démo générique.
+> Un BFF GraphQL public en point d'entrée unique, devant des API REST possédées
+> par d'autres équipes. Tout tourne sur Kubernetes, sur GKE. »
+
+### Les six composants
+
+| Service | Techno | Rôle dans la simulation |
+|---|---|---|
+| **`graphql-bff`** | Node 22, Apollo Server 5, port 8080 | Le point d'entrée public. C'est la pièce qui reproduit le vôtre. |
+| **`hotel-search-api`** | Java 21, Spring Boot 3.4, port 8081 | Recherche et disponibilités, sur PostgreSQL. Une API REST d'une autre équipe. |
+| **`booking-api`** | Python 3.12, Flask + gunicorn, port 8082 | Cycle de vie des réservations. Appelle le paiement — c'est lui qui donne à la trace son troisième niveau. |
+| **`payment-api`** | Node 22, Express, port 8083 | Autorisation de paiement. Renvoie HTTP 402 sur un refus. |
+| **`all-web`** | React 18, Vite, nginx | Le parcours de réservation, avec le SDK RUM Browser et Browser Logs. |
+| **`traffic`** | Locust, 8 utilisateurs simultanés | Charge continue, ~3 req/s, depuis une semaine. |
+
+Trois langages différents, volontairement : c'est ce qui rend le tracing
+distribué crédible plutôt que théorique.
+
+### Ce qui compte vraiment : la structure interne du BFF
+
+> « Et surtout, le BFF est découpé comme le vôtre :
+> **resolvers → repositories avec dataloaders → API clients → mappers DTO**.
+> Les resolvers sont fins, les règles métier sont dans les repositories, et la
+> traduction entre le DTO REST en snake_case et le DTO GraphQL en camelCase est
+> isolée dans les mappers. »
+
+C'est le point qui fait dire « ils ont compris notre problème » plutôt que
+« jolie démo ».
+
+### La taxonomie d'erreurs métier
+
+Cinq codes, figés dans `src/errors.js`, exposés dans `extensions.code` de la
+réponse GraphQL :
+
+`INVALID_DATE` · `HOTEL_UNAVAILABLE` · `PAYMENT_DECLINED` · `RATE_EXPIRED` ·
+`UPSTREAM_UNAVAILABLE`
+
+> « C'est le contrat public. Les API en aval ont leur propre vocabulaire
+> d'erreurs, et les repositories du BFF font la traduction — donc quand une
+> équipe aval renomme son code d'erreur, le contrat client ne bouge pas. »
+
+### Le volume de données
+
+Chiffres réels dans la base, à citer si on vous demande si c'est un jouet :
+
+| | |
+|---|---|
+| Hôtels | 22 410 |
+| Tarifs | 61 630 |
+| Lignes de disponibilité | 1 008 450 |
+| Réservations accumulées | ~102 000 |
+
+> « Un million de lignes d'inventaire, ce n'est pas décoratif : c'est ce qui
+> permet qu'une régression de plan d'exécution SQL soit réellement mesurable,
+> pas simulée par un `sleep`. »
+
+### Côté Datadog
+
+> « L'agent Datadog tourne en DaemonSet sur les deux nœuds, avec le collector
+> DDOT à côté des tracers — c'est le scénario hybride dont vous parliez. Les
+> quatre services sont instrumentés, PostgreSQL est sous Database Monitoring, et
+> le profiler continu tourne sur les quatre. »
+
+### Le mix de clients
+
+Le générateur se présente sous quatre identités, ce qui alimente la vue par
+version :
+
+`all-web 3.4.0` · `all-ios 6.2.0` · `all-ios 6.1.0` · `all-android 5.9.0`
+
+Et la cohorte `all-ios 6.1.0` interroge encore un champ déprécié,
+`Hotel.thumbnailUrl` — ce qui donne la réponse à « quand puis-je supprimer ce
+champ ». C'est un de vos sujets Hive.
+
 ## Acte 1 — « l'alerte que vous avez appris à ignorer » (5 min)
 
 ### Clics
