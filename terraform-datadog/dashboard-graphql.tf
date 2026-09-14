@@ -186,7 +186,7 @@ resource "datadog_dashboard" "graphql_health" {
 
       widget {
         timeseries_definition {
-          title       = "Errors by business code (span-based) — pivots straight to the traces"
+          title       = "Errors by business code (span-based)"
           show_legend = true
           request {
             # Derived from the spans, so the context menu's View traces / View
@@ -195,6 +195,24 @@ resource "datadog_dashboard" "graphql_health" {
             q            = "sum:${datadog_spans_metric.graphql_business_errors.name}{$env,service:${var.bff_service}}by{error_code}.as_count()"
             display_type = "bars"
             style { palette = "warm" }
+          }
+
+          custom_link {
+            override_label = "traces"
+            link           = "${local.trace_link_base}%40graphql.error.code%3A*"
+          }
+
+          custom_link {
+            override_label = "logs"
+            link           = "${local.log_link_base}%40error_code%3A*"
+          }
+
+          dynamic "custom_link" {
+            for_each = local.business_error_codes
+            content {
+              label = "Traces — ${custom_link.value}"
+              link  = "${local.trace_link_base}%40graphql.error.code%3A${custom_link.value}"
+            }
           }
         }
       }
@@ -209,6 +227,25 @@ resource "datadog_dashboard" "graphql_health" {
             style { palette = "warm" }
           }
 
+          # Same links as the span-based widget above, so whichever of the two
+          # is on screen during the demo behaves identically.
+          custom_link {
+            override_label = "traces"
+            link           = "${local.trace_link_base}%40graphql.error.code%3A*"
+          }
+
+          custom_link {
+            override_label = "logs"
+            link           = "${local.log_link_base}%40error_code%3A*"
+          }
+
+          dynamic "custom_link" {
+            for_each = local.business_error_codes
+            content {
+              label = "Traces — ${custom_link.value}"
+              link  = "${local.trace_link_base}%40graphql.error.code%3A${custom_link.value}"
+            }
+          }
         }
       }
 

@@ -57,8 +57,11 @@ Then follow its dashboard link and drill:
 
 1. **"Errors by business code (span-based)"** — the spike on `payment_declined`
    while `invalid_date` does not move.
-2. **Context menu → View traces** — native pivot, because this widget is built
-   on a span-based metric.
+2. **Right-click the series → View traces**, or one of the
+   "Traces — PAYMENT_DECLINED" entries to go straight to a single code. These
+   are explicit links on the widget: Datadog greys out its own trace pivot on
+   these widgets and the reason could not be established, so the links are
+   wired by hand. Every target was verified to return spans.
 3. **A failing trace** — `graphql-bff` → `booking-api` → `payment-api`, with
    `decline_reason` on the payment span.
 4. **The trace's Logs tab** — five logs, one from each service it touched.
