@@ -1,156 +1,197 @@
-# Accor BFF observability demo
+# Démo observabilité — BFF GraphQL Accor
 
-A public GraphQL BFF (Apollo Server) in front of three downstream REST APIs,
-instrumented with Datadog through the DDOT collector, deployed to GKE with
-Terraform under service account impersonation.
+Un BFF GraphQL public devant trois API REST, instrumenté avec Datadog, déployé
+sur GKE par Terraform sous impersonation de compte de service.
 
-Built to answer what the Accor BFF team actually asked for: end-to-end tracing
-from a GraphQL operation into the faulty REST call, error rates sliced by
-*business* error code, per-resolver and per-field latency, and dashboards that
-are not maintained by hand in Terraform.
+Construit pour répondre à ce que l'équipe BFF d'Accor a réellement demandé :
+suivre une opération GraphQL jusqu'à l'API REST fautive, ventiler les taux
+d'erreur par code **métier** et non globalement, mesurer la latence par resolver
+et par champ, et ne plus maintenir des dashboards à la main en Terraform.
 
-- **[DEMO-SCENARIOS.md](DEMO-SCENARIOS.md)** — the demo script. Start there.
-- **[DEMO-DEROULE.md](DEMO-DEROULE.md)** — le déroulé minuté, clic par clic, avec
-  ce qu'il y a à dire. En français, c'est le document à garder ouvert pendant la
-  démo.
-- **[BITS-INVESTIGATION.md](BITS-INVESTIGATION.md)** — prompts for Bits
-  Investigation and the ground-truth sheet to grade its answer against.
-- **[AGENTS.md](AGENTS.md)** — scaffold conventions and instrumentation notes.
+| Document | Contenu |
+|---|---|
+| **[DEMO-DEROULE.md](DEMO-DEROULE.md)** | Le déroulé minuté, clic par clic, avec ce qu'il y a à dire. À garder ouvert pendant la démo. |
+| **[DEMO-SCENARIOS.md](DEMO-SCENARIOS.md)** | Les scénarios de panne, les métriques custom, les pivots vérifiés. |
+| **[BITS-INVESTIGATION.md](BITS-INVESTIGATION.md)** | Prompts pour Bits Investigation et la fiche de notation pour juger sa réponse. |
+| **[mobile/README.md](mobile/README.md)** | L'app mobile : écrite, **non compilée**. |
 
 ---
 
 ## Architecture
 
 ```
-                                  ┌──────────────────┐
-  all-web (React/RUM) ──────────▶ │   graphql-bff    │  Apollo Server, TypeScript-style
-                                  │  Node.js 22      │  resolvers → repositories/dataloaders
-                                  └────────┬─────────┘  → API clients → DTO mappers
-                                           │
-                     ┌─────────────────────┼─────────────────────┐
-                     ▼                     ▼                     │
-           ┌──────────────────┐  ┌──────────────────┐            │
-           │ hotel-search-api │  │   booking-api    │            │
-           │  Java 21 Spring  │  │  Python 3.12     │            │
-           └────────┬─────────┘  └────┬────────┬────┘            │
-                    │                 │        │                 │
-                    │                 │        ▼                 │
-                    │                 │  ┌──────────────────┐    │
-                    │                 │  │   payment-api    │    │
-                    │                 │  │  Node.js 22      │    │
-                    │                 │  └────────┬─────────┘    │
-                    ▼                 ▼           ▼              │
-                  ┌────────────────────────────────────┐         │
-                  │      PostgreSQL 16 (DBM)           │◀────────┘
-                  └────────────────────────────────────┘
+                    ┌──────────────┐        ┌──────────────────────┐
+                    │ rum-traffic  │        │  synthetics private  │
+                    │  Playwright  │        │      location        │
+                    └──────┬───────┘        └──────────┬───────────┘
+                           │ navigue                   │ sonde
+                           ▼                           ▼
+  ┌──────────┐      ┌──────────────┐          ┌──────────────────┐
+  │ traffic  │────▶ │   all-web    │────────▶ │   graphql-bff    │
+  │  Locust  │      │ React + RUM  │  nginx   │  Apollo Server 5 │
+  └──────────┘      └──────────────┘          └────────┬─────────┘
+                                                       │
+                              ┌────────────────────────┼──────────────┐
+                              ▼                        ▼              │
+                    ┌──────────────────┐   ┌──────────────────┐       │
+                    │ hotel-search-api │   │   booking-api    │       │
+                    │  Java 21 Spring  │   │  Python 3.12     │       │
+                    └────────┬─────────┘   └────┬────────┬────┘       │
+                             │                  │        ▼            │
+                             │                  │  ┌──────────────┐   │
+                             │                  │  │ payment-api  │   │
+                             │                  │  │  Node.js 22  │   │
+                             │                  │  └──────┬───────┘   │
+                             ▼                  ▼         ▼           │
+                        ┌───────────────────────────────────────┐      │
+                        │      PostgreSQL 16 (DBM)              │◀─────┘
+                        └───────────────────────────────────────┘
 ```
 
-| Service | Stack | Port | Role |
-|---|---|---|---|
-| `graphql-bff` | Node.js / Apollo Server 5 | 8080 | Single public entry point. Layered exactly like the Accor BFF: resolvers → repositories with dataloaders → API clients → DTO mappers. Owns the business error taxonomy. |
-| `hotel-search-api` | Java 21 / Spring Boot 3.4 | 8081 | Hotel search and availability over PostgreSQL. Hosts the latency and DBM scenarios. |
-| `booking-api` | Python 3.12 / Flask + gunicorn | 8082 | Booking lifecycle. Calls `payment-api`, giving the trace its third hop. |
-| `payment-api` | Node.js 22 / Express | 8083 | Payment authorization. Source of the decline-rate scenario. |
-| `all-web` | React 18 / Vite | 80 | Booking journey with Browser RUM, session replay and custom actions. |
-| `traffic` | Locust | — | Continuous mixed load across four client platforms and versions. |
+Trois langages différents, volontairement : c'est ce qui rend le tracing
+distribué crédible plutôt que théorique.
 
-**Datadog features exercised:** APM with distributed tracing, Logs correlated
-via `dd.trace_id`, Infrastructure, Browser RUM, Database Monitoring
-(PostgreSQL), Continuous Profiling, App & API Protection, Feature Flags.
+### Les composants applicatifs
+
+| Service | Stack | Port | Rôle |
+|---|---|---|---|
+| `graphql-bff` | Node 22 / Apollo Server 5 | 8080 | Point d'entrée public unique. Découpé comme le BFF Accor : resolvers → repositories avec dataloaders → API clients → mappers DTO. Porte la taxonomie d'erreurs métier. |
+| `hotel-search-api` | Java 21 / Spring Boot 3.4 | 8081 | Recherche et disponibilités sur PostgreSQL. Héberge les scénarios de latence et DBM. |
+| `booking-api` | Python 3.12 / Flask + gunicorn | 8082 | Cycle de vie des réservations. Appelle `payment-api`, ce qui donne à la trace son troisième niveau. |
+| `payment-api` | Node 22 / Express | 8083 | Autorisation de paiement, HTTP 402 sur refus. Source du scénario de tempête de refus. |
+| `all-web` | React 18 / Vite + nginx | 80 | Parcours de réservation, Browser RUM, session replay, Browser Logs. |
+| `postgresql` | PostgreSQL 16 | 5432 | Sous Database Monitoring, `pg_stat_statements` préchargé. |
+
+### Les générateurs et sondes
+
+| Workload | Rôle |
+|---|---|
+| `traffic` | Locust, 8 utilisateurs, ~3 req/s en continu sur l'API GraphQL. Quatre identités de client, dont une cohorte qui interroge encore un champ déprécié. |
+| `rum-traffic` | Playwright pilotant le vrai front en Chromium sur quatre profils d'écran. Sans lui le RUM reste vide : Locust parle à l'API, pas au navigateur. 12% des sessions finissent sur un crash volontaire. |
+| `synthetics-pl` | Worker de private location Datadog. Les Synthetics tournent **depuis l'intérieur du cluster** — comme une sonde interne Accor, et rien n'est exposé sur Internet. |
+
+### Volumes réels en base
+
+| | |
+|---|---|
+| Hôtels | 22 410 |
+| Tarifs | 61 630 |
+| Lignes de disponibilité | 1 008 450 |
+| Réservations accumulées | ~102 000 |
+
+Le million de lignes d'inventaire n'est pas décoratif : c'est ce qui permet
+qu'une régression de plan d'exécution SQL soit réellement mesurable, plutôt que
+simulée par un `sleep`.
 
 ---
 
-## Prerequisites
+## Ce qui est monté dans Datadog
 
-### 1. Datadog credentials — required, currently unset
+### Dashboards
 
-`.env` shipped with placeholder values. **The demo emits no telemetry until
-these are real**; a local Datadog Agent test returned `API Key invalid`.
+- [ALL BFF — GraphQL operation health](https://app.datadoghq.com/dashboard/tgq-6hy-vt9) — latence par opération et par resolver, erreurs par resolver, ventilation par code métier, usage des champs dépréciés par version de client
+- [ALL BFF — BFF to REST chain latency](https://app.datadoghq.com/dashboard/h7a-fyg-da5) — p95 par service aval et par endpoint, répartition des statuts HTTP, coût SQL, CPU et mémoire par déploiement
 
-Fill in `.env`:
+### Monitors — la comparaison seuil fixe / seuil dynamique
+
+| Monitor | Type |
+|---|---|
+| Taux d'erreur GraphQL global > 5% | **seuil fixe**, gardé comme contre-exemple : il est rouge en permanence |
+| Refus de paiement anormaux | **seuil dynamique** `robust`, saisonnalité journalière, sur le ratio de HTTP 402 |
+| Code d'erreur métier anormal | **seuil dynamique** `basic`, par `error_code` |
+| Erreurs anormales sur un resolver | **seuil dynamique** `agile`, par resolver |
+
+### Synthetics, depuis la private location
+
+| Test | Ce qu'il vérifie |
+|---|---|
+| Parcours de réservation (navigateur) | Chargement, recherche, tarifs affichés, dans un vrai Chromium |
+| API GraphQL searchHotels | Le **corps** de la réponse, pas le statut — une opération GraphQL en échec répond 200 |
+| Santé × 3 | Un test par service aval |
+
+### Produits exercés
+
+APM avec tracing distribué · Logs corrélés par `dd.trace_id` · Infrastructure ·
+Browser RUM et Session Replay · Browser Logs · Database Monitoring ·
+Continuous Profiling avec timeline · App & API Protection · Synthetics ·
+Source Code Integration
+
+---
+
+## Prérequis
+
+### Credentials Datadog
+
+Dans `.env`, gitignoré. Tous renseignés et vérifiés :
 
 ```
-DD_API_KEY=<32-hex-char API key>
-DD_APP_KEY=<application key>
-DD_RUM_APPLICATION_ID=<from RUM application setup>
-DD_RUM_CLIENT_TOKEN=<from RUM application setup>
+DD_API_KEY       validée contre /api/v1/validate
+DD_APP_KEY       validée
+DD_RUM_APPLICATION_ID    correspond à l'app RUM accorDemoApp
+DD_RUM_CLIENT_TOKEN
+PROJECT_ID       cible GCP, hors du dépôt car celui-ci est public
+SERVICE_ACCOUNT  compte impersoné, hors du dépôt pour la même raison
 ```
 
-Create the RUM application in Datadog under **Digital Experience → Add an
-Application → Browser**. Without `DD_RUM_APPLICATION_ID` and
-`DD_RUM_CLIENT_TOKEN` the front end logs a warning and RUM stays inert — the
-backend half of the demo still works.
+### IAM
 
-### 2. IAM — one role has to be added
+Le déploiement passe entièrement par l'impersonation d'un compte de service qui
+porte `container.admin`, `compute.admin`, `iam.serviceAccountUser`,
+`storage.admin` et `artifactregistry.admin` — ce dernier a dû être ajouté, les
+quatre premiers ne donnant aucun accès à Artifact Registry.
 
-The deploy runs entirely under impersonation of
-`gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com`, which
-holds `container.admin`, `compute.admin`, `iam.serviceAccountUser` and
-`storage.admin`. **None of those grant Artifact Registry access** — verified:
-`artifactregistry.locations.list` is denied. Grant it:
-
-```bash
-gcloud projects add-iam-policy-binding datadog-ese-sandbox \
-  --member="serviceAccount:gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com" \
-  --role="roles/artifactregistry.admin"
-```
-
-You also need `roles/iam.serviceAccountTokenCreator` on that service account
-for your own user, which you already have — impersonation was verified working.
-
-If you would rather not change IAM, run the deploy with
-`REGISTRY_IDENTITY=user` and images are pushed with your own credentials
-instead; everything else stays impersonated.
-
-### 3. Tooling
+### Outillage
 
 ```bash
 brew install hashicorp/tap/terraform
 gcloud components install gke-gcloud-auth-plugin
+npm install -g @datadog/datadog-ci
 ```
 
-Already present on this machine: `gcloud` 583, `kubectl` 1.34, `helm` 4.0,
-`docker` 29, `docker-compose`. Note that the `docker compose` **plugin** is not
-installed — use the standalone `docker-compose` binary if you build by hand.
+Note : le plugin `docker compose` n'est pas installé sur la machine de
+préparation, seul le binaire `docker-compose`. Et le builder Docker local ne
+produit pas d'images amd64 exploitables depuis un Mac Apple Silicon — les
+images passent par Cloud Build, voir `scripts/build-cloud.sh`.
 
 ---
 
-## Deploy
+## Déployer
 
 ```bash
 ./scripts/deploy-gke.sh
 ```
 
-The script refuses to start rather than half-deploy: it checks every tool,
-rejects placeholder credentials, verifies impersonation, and only then applies
-Terraform. It then builds and pushes all six images, points `kubectl` at the
-cluster, creates the secrets (including a freshly generated database password
-that never touches the repo), installs the Datadog Agent with the DDOT
-collector, and applies the manifests.
+Le script refuse de démarrer plutôt que de déployer à moitié : il contrôle
+chaque outil, rejette les credentials placeholder, vérifie l'impersonation, puis
+seulement applique Terraform. Il construit et pousse les images, pointe
+`kubectl` sur le cluster, crée les secrets — dont un mot de passe de base
+généré qui ne touche jamais le dépôt — installe l'Agent Datadog avec le
+collector DDOT, et applique les manifests.
 
-Then:
+Puis :
 
 ```bash
 kubectl port-forward -n ggr-demo-accor svc/frontend 8090:80
 open http://localhost:8090
 ```
 
-### What Terraform creates
+### Ce que Terraform crée
 
-A zonal GKE **Standard** cluster in `europe-west9-a` with two `e2-standard-4`
-nodes, plus the Artifact Registry repository.
+Un cluster GKE **Standard** zonal en `europe-west9-a`, deux nœuds
+`e2-standard-4`, plus le dépôt Artifact Registry.
 
-Standard rather than Autopilot on purpose: the Datadog Agent and DDOT collector
-need host-level access (kubelet metrics, host ports, process collection) that
-Autopilot restricts, and Autopilot would quietly cost the infrastructure half
-of the demo. GKE's own logging and monitoring are disabled — the demo does not
-use them and they are not free.
+Standard et non Autopilot volontairement : l'Agent Datadog et le collector DDOT
+ont besoin d'accès au niveau hôte — métriques kubelet, host ports, collecte de
+processus — qu'Autopilot restreint. Autopilot coûterait silencieusement la
+moitié infrastructure de la démo.
 
-State is local by default. A commented GCS backend is in
-`terraform/versions.tf`; the service account already holds `storage.admin`, so
-switching is an uncomment plus `terraform init -migrate-state`.
+Les dashboards, monitors, Synthetics et la métrique de span vivent dans un
+module séparé, `terraform-datadog/`, avec son propre état : le module GKE a
+besoin de credentials Google pour se rafraîchir, un dashboard non. Les coupler
+signifiait qu'un token gcloud expiré bloquait une modification de dashboard —
+ce qui est arrivé une fois.
 
-### Teardown
+### Démolir
 
 ```bash
 terraform -chdir=terraform destroy
@@ -158,70 +199,77 @@ terraform -chdir=terraform destroy
 
 ---
 
-## Running the demo
+## Jouer la démo
 
-See **[DEMO-SCENARIOS.md](DEMO-SCENARIOS.md)**. Scenarios are runtime switches,
-not redeploys:
+Voir **[DEMO-DEROULE.md](DEMO-DEROULE.md)**. Les scénarios sont des
+interrupteurs à chaud, pas des redéploiements :
 
 ```bash
 scripts/scenario.sh list
-scripts/scenario.sh latency-on      # DBM plan flip + profiler flame graph
-scripts/scenario.sh payment-storm   # anomaly detection on a business error code
-scripts/scenario.sh n-plus-one-on   # 25 REST spans instead of 1
+scripts/scenario.sh latency-on        # bascule de plan SQL + flamegraph profiler
+scripts/scenario.sh payment-storm     # anomalie sur un code d'erreur métier
+scripts/scenario.sh n-plus-one-on     # 25 spans REST au lieu d'un
+scripts/scenario.sh booking-outage    # le scénario d'enquête
 scripts/scenario.sh reset
 ```
 
 ---
 
-## Regenerating the manifests
+## Régénérer les manifests
 
-The service manifests are generated, because twelve lines of unified service
-tagging, probes and Datadog environment repeated across four services is how a
-demo ends up with one service silently missing its `DD_ENV`:
+Les manifests de services sont générés, parce que douze lignes de tagging
+unifié, de sondes et d'environnement Datadog répétées sur quatre services, c'est
+la façon dont une démo finit avec un service qui a silencieusement perdu son
+`DD_ENV` :
 
 ```bash
 python3 scripts/render-manifests.py
 ```
 
-Edit `SERVICES` in that script, not the YAML.
+Éditer la liste `SERVICES` du script, pas le YAML.
 
 ---
 
-## What this demo does not cover
+## Ce que cette démo ne couvre pas
 
-Worth saying out loud before the meeting:
+À dire avant la réunion plutôt que de le laisser découvrir :
 
-- **Mobile RUM.** The scaffold has no mobile app, so replacing Firebase is an
-  argument, not a demo.
-- **The real ALL site is UJS/vanilla**, this front is React. The RUM story
-  transfers; the framework does not.
-- **Not a Hive replacement.** Operation-, resolver- and field-level latency,
-  error codes, client versions and deprecated-field usage are all covered by
-  APM spans plus the custom metrics in `src/telemetry.js`. Schema registry and
-  schema-change tracking are not.
-- **`payment-api` is Node, not Java.** The scaffolding CLI assigns frameworks
-  to services round-robin with no per-service control; three languages and a
-  three-hop chain survive intact.
+- **Mobile RUM n'est pas monté.** L'app existe dans `mobile/` mais n'a jamais
+  été compilée : ni Xcode ni le SDK Android n'étaient installés. Aucun faux
+  événement mobile n'a été fabriqué pour combler le trou.
+- **Ce front est en React**, le site ALL est en UJS. L'histoire RUM se
+  transpose, le framework non.
+- **Ce n'est pas un remplacement de Hive à l'identique.** Latence par
+  opération, par resolver et par champ, codes d'erreur, versions de clients et
+  usage des champs dépréciés sont couverts. Registre de schéma et suivi des
+  changements de schéma ne le sont pas.
+- **Feature Flags n'est pas démontrable** : le provider OpenFeature de Datadog
+  n'arrive pas à s'initialiser dans le BFF. Le scénario N+1 fonctionne par sa
+  variable d'environnement de contournement.
+- **`payment-api` est en Node et non en Java.** Le CLI de scaffolding répartit
+  les frameworks en round-robin sans contrôle par service ; trois langages et
+  une chaîne à trois niveaux survivent intacts.
+- **Les liens traces et logs des widgets de code métier sont câblés à la
+  main.** Datadog grise son propre pivot sur ces widgets et la cause n'a pas pu
+  être établie ; chaque lien a été vérifié individuellement à la place.
 
-## Known scaffold fixes applied
+---
 
-The generator produced a few things that could not work, corrected here in case
-the CLI is reused:
+## Défauts du scaffold corrigés
 
-- Namespace and image names were `demoAccor` — invalid for both Kubernetes
-  (RFC 1123 requires lowercase) and Docker repositories. Now `ggr-demo-accor`.
-- The PostgreSQL manifest had `imagePullPolicy: Never` on the public
-  `postgres:16` image, no credentials, no `shared_preload_libraries`, and never
-  mounted its init SQL — so DBM had no query metrics and the schema was never
-  created.
-- The seed SQL called `CREATE EXTENSION vector`, which does not exist in
-  `postgres:16` and aborted the init script.
-- Apollo Server 4 and the scaffold's dependency set tripped the supply-chain
-  scanner on three advisories with no patched 4.x release; the BFF is on
-  Apollo Server 5 with the Express 5 integration.
-- `helm/datadog-values.yaml` set `datadog.dbm.enabled`, which is not a key in
-  the Datadog chart and was silently ignored. Database Monitoring is switched on
-  by the postgres autodiscovery annotation instead.
-- The traffic generator targeted a generic CRUD API (`/api/users`,
-  `/api/projects`) that does not exist here; it now drives GraphQL operations
-  across four client platforms and versions.
+Le générateur produisait plusieurs choses qui ne pouvaient pas fonctionner,
+consignées ici au cas où le CLI resserve :
+
+- Namespace et noms d'images en `demoAccor` — invalides pour Kubernetes
+  (RFC 1123) comme pour Docker.
+- PostgreSQL avec `imagePullPolicy: Never` sur une image publique, sans mot de
+  passe, sans `shared_preload_libraries`, et sans jamais monter son SQL d'init :
+  ni schéma, ni métriques DBM.
+- Le seed appelait `CREATE EXTENSION vector`, absent de `postgres:16`.
+- `datadog.dbm.enabled` dans les values Helm n'existe pas dans le chart et
+  était ignoré silencieusement. DBM passe par l'annotation d'autodiscovery.
+- DogStatsD n'avait pas de hostPort sur le DaemonSet, donc toutes les métriques
+  métier partaient en UDP dans le vide, sans aucune erreur.
+- Le générateur de trafic ciblait une API CRUD générique inexistante ici.
+- Apollo Server 4 déclenchait trois advisories sans version corrigée ; le BFF
+  est en Apollo Server 5 avec l'intégration Express 5.
