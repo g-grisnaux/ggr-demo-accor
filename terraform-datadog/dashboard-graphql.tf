@@ -91,13 +91,106 @@ resource "datadog_dashboard" "graphql_health" {
           # graphql-bff has none. This number is more useful to this audience
           # anyway — it is the share of traffic a global error-rate threshold
           # would alert on while nothing is actually broken.
+          # Numérateur et dénominateur comptent tous deux des *opérations* : la
+          # métrique de span porte un span par opération en erreur, et
+          # execute.hits un span par opération. Le compteur DogStatsD
+          # bff.graphql.errors ne convient pas ici — il s'incrémente une fois par
+          # erreur du tableau `errors`, donc plusieurs fois pour une seule
+          # opération dont plusieurs champs échouent.
           title     = "Business rejections, % of operations"
           autoscale = false
           precision = 1
           custom_unit = "%"
           request {
-            q          = "100*sum:bff.graphql.errors{$env,error_kind:business}.as_count()/sum:bff.graphql.operation{$env}.as_count()"
+            q          = "100*sum:${datadog_spans_metric.graphql_business_errors.name}{$env,service:${var.bff_service},error_kind:business}.as_count()/sum:trace.graphql.execute.hits{$env,service:${var.bff_service}}.as_count()"
             aggregator = "avg"
+          }
+        }
+      }
+
+      widget {
+        query_value_definition {
+          # Le chiffre que surveille le monitor à seuil fixe. Il additionne les
+          # rejets métier et les vraies pannes, parce que dd-trace marque le span
+          # graphql.execute en erreur dès que la réponse contient des erreurs.
+          # Mesuré autour de 9,5% alors que rien n'est cassé.
+          title       = "Taux d'erreur GraphQL global"
+          autoscale   = false
+          precision   = 2
+          custom_unit = "%"
+          request {
+            q          = "100*sum:trace.graphql.execute.errors{$env}.as_count()/sum:trace.graphql.execute.hits{$env}.as_count()"
+            aggregator = "avg"
+            conditional_formats {
+              comparator = ">"
+              value      = 5
+              palette    = "white_on_yellow"
+            }
+            conditional_formats {
+              comparator = "<="
+              value      = 5
+              palette    = "white_on_green"
+            }
+          }
+        }
+      }
+
+      widget {
+        query_value_definition {
+          # Le même trafic, dont on a retiré les rejets métier. C'est le taux
+          # qu'on veut réellement surveiller : proche de zéro en régime normal,
+          # il décolle pendant booking-outage.
+          #
+          # Même contrainte d'unité que la tuile des rejets métier ci-dessus. La
+          # première version divisait des erreurs par des opérations et affichait
+          # 2750% pendant booking-outage : une seule searchHotels y déclenche
+          # jusqu'à 25 résolutions d'availability qui échouent chacune.
+          title       = "Taux de vraies pannes (hors rejets métier)"
+          autoscale   = false
+          precision   = 2
+          custom_unit = "%"
+          request {
+            q          = "100*sum:${datadog_spans_metric.graphql_business_errors.name}{$env,service:${var.bff_service},!error_kind:business}.as_count()/sum:trace.graphql.execute.hits{$env,service:${var.bff_service}}.as_count()"
+            aggregator = "avg"
+            conditional_formats {
+              comparator = ">"
+              value      = 1
+              palette    = "white_on_red"
+            }
+            conditional_formats {
+              comparator = "<="
+              value      = 1
+              palette    = "white_on_green"
+            }
+          }
+        }
+      }
+
+      widget {
+        timeseries_definition {
+          # Le graphe qui porte l'argument : deux lignes, l'une plate autour de
+          # 9% qui ne veut rien dire, l'autre à zéro qui bouge seulement quand
+          # quelque chose casse vraiment.
+          title       = "Taux global vs vraies pannes — pourquoi un seuil unique échoue"
+          show_legend = true
+          request {
+            q            = "100*sum:trace.graphql.execute.errors{$env}.as_count()/sum:trace.graphql.execute.hits{$env}.as_count()"
+            display_type = "line"
+            style { palette = "warm" }
+          }
+          request {
+            q            = "100*sum:${datadog_spans_metric.graphql_business_errors.name}{$env,service:${var.bff_service},!error_kind:business}.as_count()/sum:trace.graphql.execute.hits{$env,service:${var.bff_service}}.as_count()"
+            display_type = "line"
+            style { palette = "purple" }
+          }
+          yaxis { label = "%" }
+
+          # Le seuil de 5% du monitor, matérialisé : on voit d'un coup d'oeil que
+          # la ligne globale est au-dessus en permanence.
+          marker {
+            display_type = "error dashed"
+            value        = "y = 5"
+            label        = "seuil fixe 5%"
           }
         }
       }

@@ -182,6 +182,21 @@ un ingénieur de leur équipe le verra en trois secondes.
 > bruit : c'est que le jour où quelque chose casse vraiment, cette alerte ne
 > vous apprend rien parce qu'elle était déjà rouge. »
 
+7. Juste en dessous, la tuile **« Taux global vs vraies pannes — pourquoi un
+   seuil unique échoue »**. Deux courbes et une ligne pointillée à 5 %.
+
+> « La courbe chaude, c'est ce que surveille le monitor à seuil fixe. Elle ne
+> redescend jamais sous le pointillé.
+>
+> La courbe violette, c'est le même trafic dont on a retiré les rejets métier.
+> Elle est plate à zéro. Elle ne bouge que quand quelque chose casse vraiment —
+> vous allez la voir décoller dans deux minutes.
+>
+> Même trafic, même point d'entrée. Une seule des deux est alertable. »
+
+Les deux taux sont normalisés par opération et non par erreur : c'est ce qui
+permet de les superposer sur le même axe.
+
 **Aucune investigation dans cet acte.** C'est le message.
 
 ---
