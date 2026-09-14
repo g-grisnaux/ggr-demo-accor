@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rum-traffic
+  namespace: ggr-demo-accor
+  labels:
+    app: rum-traffic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rum-traffic
+  template:
+    metadata:
+      labels:
+        app: rum-traffic
+    spec:
+      containers:
+        - name: rum-traffic
+          image: ggr-demo-accor/rum-traffic:latest
+          imagePullPolicy: Always
+          env:
+            - name: TARGET_URL
+              value: "http://frontend"
+            - name: CRASH_RATE
+              value: "0.12"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            # A headless Chromium is memory-hungry and /dev/shm is small inside
+            # a container, hence --disable-dev-shm-usage in the code and a
+            # generous limit here.
+            limits:
+              cpu: "1"
+              memory: 2Gi

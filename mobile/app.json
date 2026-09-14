@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "ALL Mobile",
+    "slug": "all-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.accor.demo.allmobile",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "localhost": { "NSExceptionAllowsInsecureHTTPLoads": true },
+            "10.0.2.2": { "NSExceptionAllowsInsecureHTTPLoads": true }
+          }
+        }
+      }
+    },
+    "android": {
+      "package": "com.accor.demo.allmobile",
+      "usesCleartextTraffic": true
+    }
+  }
+}

@@ -18,6 +18,7 @@ resources:
   - k8s/frontend/frontend-deployment.yaml
   - k8s/frontend/frontend-service.yaml
   - k8s/traffic/traffic-deployment.yaml
+  - k8s/rum-traffic/rum-traffic-deployment.yaml
   - k8s/ingress.yaml
 
 # The schema and seed ship as a ConfigMap so Postgres builds itself on first
@@ -53,4 +54,7 @@ images:
     newTag: latest
   - name: ggr-demo-accor/traffic
     newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/traffic
+    newTag: latest
+  - name: ggr-demo-accor/rum-traffic
+    newName: europe-west9-docker.pkg.dev/datadog-ese-sandbox/ggr-demo-accor/rum-traffic
     newTag: latest

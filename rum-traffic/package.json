@@ -1,0 +1,7 @@
+{
+  "name": "rum-traffic",
+  "private": true,
+  "dependencies": {
+    "playwright": "1.49.0"
+  }
+}
