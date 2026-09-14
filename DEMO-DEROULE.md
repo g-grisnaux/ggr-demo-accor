@@ -116,8 +116,8 @@ un ingénieur de leur équipe le verra en trois secondes.
 ### Ce que tu dis
 
 > « Même stack, même moment. Ce monitor-là vient de passer au rouge. La
-> différence : il ne me dit pas "le taux d'erreur monte", il me dit *quelle
-> règle métier* échoue. `PAYMENT_DECLINED`.
+> différence : il ne me dit pas "le taux d'erreur monte", il me dit *quoi* — les
+> refus de paiement sortent de leur bande habituelle.
 >
 > Et regardez bien : le monitor précédent est rouge lui aussi, en ce moment
 > même. Mais il l'était déjà. Il n'a aucun delta, donc aucune information. Seul
@@ -127,8 +127,15 @@ un ingénieur de leur équipe le verra en trois secondes.
 3. Montre le graphe d'anomalie du monitor : la bande de référence et le
    dépassement.
 
-> « C'est de la détection d'anomalie, pas un seuil. Il a appris le rythme
-> journalier sur plusieurs jours. Personne n'a écrit "45 %" nulle part. »
+> « C'est de la détection d'anomalie, pas un seuil. Il a appris le rythme des
+> refus sur une semaine — nuits, heures creuses, pics. Personne n'a écrit de
+> valeur nulle part. Et un taux de refus de 4 % est parfaitement normal pour un
+> tunnel de paiement : ce qui compte, c'est qu'il en sorte. »
+
+Précision utile si on te la demande : le signal est le HTTP 402 de `payment-api`.
+À ce niveau le code de statut a un sens — 402 *est* un refus. C'est au niveau
+GraphQL qu'il n'en a plus, puisqu'une opération en échec répond 200. D'où la
+taxonomie d'erreurs métier propre au BFF, qui est l'objet du graphe suivant.
 
 4. **Clique le lien du dashboard dans le message.**
 5. Groupe orange, graphe **« Errors by business code »** : `payment_declined`
@@ -186,10 +193,21 @@ Attends 2 à 3 minutes que les échecs s'accumulent.
 
 ### Clics et discours
 
-1. **Onglet 1 — Monitors.** Le *même* monitor métier est repassé en Alert.
+1. **Onglet 1 — Monitors.** Cette fois c'est
+   `[ALL BFF] (seuil dynamique) Code d'erreur métier anormal` qui passe en
+   Alert, et il nomme `UPSTREAM_UNAVAILABLE`.
 
-> « Même alerte. Mais le code n'est plus `PAYMENT_DECLINED`, c'est
-> `UPSTREAM_UNAVAILABLE`. Un service amont ne répond pas. »
+> « Troisième panne, troisième code. Celui-ci surveille chaque code métier
+> séparément : `INVALID_DATE` est un fond de saisies clients,
+> `PAYMENT_DECLINED` un problème de partenaire, `UPSTREAM_UNAVAILABLE` une
+> panne de service aval. Trois causes, trois propriétaires, trois urgences — et
+> l'alerte me dit laquelle sans que j'aie rien ouvert. »
+
+Note : celui-ci tourne en `basic` et non en `robust`, parce que sa métrique
+DogStatsD n'a que quelques heures d'historique. Il est donc moins fiable que
+celui du paiement. Si tu veux un plan B sûr pour l'acte 3, le monitor
+`(seuil dynamique) Erreurs anormales sur un resolver` a ses 7 jours et réagit au
+même incident.
 
 2. **Le piège, à poser explicitement.** Retourne sur une trace *saine* d'avant
    (ou l'onglet 3, dashboard chaîne, graphe p95 par service).
