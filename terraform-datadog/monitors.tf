@@ -34,7 +34,7 @@ resource "datadog_monitor" "fixed_global_error_rate" {
     Il n'existe pas de bonne valeur, parce que le problème est la dimension
     manquante, pas le seuil.
 
-    La réponse : [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id}),
+    La réponse : [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${var.graphql_dashboard_id}),
     groupe "Per business error code".
     Notify: @${var.notification_handle}
   EOT
@@ -71,7 +71,7 @@ resource "datadog_monitor" "dynamic_payment_declines" {
     qu'il n'en a plus, puisqu'une opération en échec répond 200 — d'où la
     taxonomie d'erreurs métier propre au BFF.
 
-    Pour investiguer : [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id}),
+    Pour investiguer : [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${var.graphql_dashboard_id}),
     puis clic droit sur le graphe des codes métier → "Traces — PAYMENT_DECLINED".
     Notify: @${var.notification_handle}
   EOT
@@ -112,7 +112,7 @@ resource "datadog_monitor" "dynamic_business_error_code" {
     partenaire ; `UPSTREAM_UNAVAILABLE` est une panne de service aval. Trois
     causes, trois propriétaires, trois urgences — et l'alerte nomme laquelle.
 
-    Départ : [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id}),
+    Départ : [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${var.graphql_dashboard_id}),
     groupe "Per business error code". Les liens traces y sont par code.
     Notify: @${var.notification_handle}
   EOT
@@ -146,7 +146,7 @@ resource "datadog_monitor" "dynamic_resolver_errors" {
     `mutation.createbooking` et un pic sur `query.searchhotels` n'ont ni la même
     cause ni le même propriétaire.
 
-    [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.graphql_health.id})
+    [ALL BFF — GraphQL operation health](https://app.${var.datadog_site}/dashboard/${var.graphql_dashboard_id})
     puis [BFF to REST chain latency](https://app.${var.datadog_site}/dashboard/${datadog_dashboard.bff_rest_chain.id})
     Notify: @${var.notification_handle}
   EOT

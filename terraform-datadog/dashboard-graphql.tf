@@ -211,6 +211,67 @@ resource "datadog_dashboard" "graphql_health" {
 
   widget {
     group_definition {
+      title            = "Paiement — détection d'anomalie"
+      layout_type      = "ordered"
+      background_color = "vivid_green"
+
+      widget {
+        note_definition {
+          content          = "La bande grise est apprise, pas écrite. Elle est calculée à l'affichage par la même expression `anomalies()` que le monitor — donc **elle se dessine même si le monitor n'a pas encore basculé**, ce qui est ce qu'on veut en démo.\n\nMesuré sur 4h : borne haute entre 8,7% et 11,3% pour une médiane réelle à 2,5%. Le scénario `payment-storm` pousse à 45%, soit 4x au-dessus de la bande."
+          background_color = "green"
+          font_size        = "12"
+          text_align       = "left"
+          show_tick        = false
+        }
+      }
+
+      widget {
+        timeseries_definition {
+          # C'est la tuile qui rend l'anomalie visible. Une timeseries dont la
+          # requête utilise anomalies() fait dessiner la bande par Datadog et
+          # peindre en rouge la partie hors bande. Contrairement au statut du
+          # monitor, ce rendu ne dépend pas de l'horloge d'évaluation : il est
+          # recalculé sur la fenêtre affichée, donc rejouable sur un créneau
+          # passé si la tempête du jour arrive trop tard.
+          title       = "Part de paiements refusés vs bande apprise"
+          show_legend = true
+          request {
+            q            = "anomalies(sum:trace.express.request.hits.by_http_status{$env,service:payment-api,http.status_code:402}.as_count() / sum:trace.express.request.hits{$env,service:payment-api}.as_count(), 'robust', 2, direction='above', interval=60, alert_window='last_5m', seasonality='daily', count_default_zero='true')"
+            display_type = "line"
+            style { palette = "dog_classic" }
+          }
+          yaxis { label = "part des autorisations" }
+        }
+      }
+
+      widget {
+        alert_graph_definition {
+          # L'historique d'état du monitor lui-même : la barre rouge/verte.
+          # Complémentaire de la tuile ci-dessus — celle-ci prouve que le
+          # monitor a réellement basculé, et à quelle minute.
+          title    = "Historique du monitor à seuil dynamique"
+          alert_id = datadog_monitor.dynamic_payment_declines.id
+          viz_type = "timeseries"
+        }
+      }
+
+      widget {
+        timeseries_definition {
+          title       = "Le même trafic sans anomalies() — ce qu'on voyait avant"
+          show_legend = true
+          request {
+            q            = "100*sum:trace.express.request.hits.by_http_status{$env,service:payment-api,http.status_code:402}.as_count()/sum:trace.express.request.hits{$env,service:payment-api}.as_count()"
+            display_type = "line"
+            style { palette = "warm" }
+          }
+          yaxis { label = "%" }
+        }
+      }
+    }
+  }
+
+  widget {
+    group_definition {
       title            = "Per resolver — the field-level view read in Hive today"
       layout_type      = "ordered"
       background_color = "vivid_purple"

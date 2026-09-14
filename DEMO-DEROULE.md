@@ -400,3 +400,73 @@ Points à ne pas survendre, à dire si la question vient :
 | la liste des traces affiche tout en `ok` | C'est normal et c'est un argument : une opération GraphQL en échec renvoie HTTP 200 par spécification. Filtre sur `@graphql.error.code:*`, jamais sur `status:error`. |
 | le groupe « business error code » est vide | La métrique DogStatsD ne remonte pas. Bascule sur le groupe « Per resolver », qui tourne sur les métriques de trace et n'en dépend pas. |
 | Bits Investigate n'est pas disponible | Tout l'acte 3 se déroule à la main. C'est le chemin que la fiche décrit de toute façon. |
+
+---
+
+## Déclencher la détection d'anomalie à coup sûr
+
+### La commande
+
+```bash
+./scripts/scenario.sh payment-storm
+```
+
+Elle pousse `declineRate` de 0,04 à 0,45 dans le pod `payment-api` via
+`POST /admin/scenario?declineRate=0.45`. Rien n'est redéployé, le changement est
+en mémoire et prend effet à la requête suivante. Pour restaurer :
+
+```bash
+./scripts/scenario.sh payment-normal
+```
+
+### Le chronométrage, mesuré
+
+| Événement | Délai mesuré |
+|---|---|
+| Commande → monitor en **Alert** | **3 min 21 s** |
+| `payment-normal` → retour en **OK** | **6 min 11 s** |
+
+Les deux chiffres viennent d'une exécution réelle du 14/09. Le délai d'alerte
+tient à `alert_window='last_5m'` : le monitor exige un écart soutenu, pas un pic.
+
+**Conséquence pratique : lance la tempête au début de l'acte 1.** Quand tu
+arrives sur le monitor à l'acte 2, il est déjà rouge et tu n'as rien à attendre à
+l'écran. Et si tu répètes avant la séance, restaure au moins **7 minutes** avant
+de vouloir un dashboard vert.
+
+### Ce que la bande vaut réellement
+
+Mesuré sur la même exécution :
+
+| | part de 402 |
+|---|---|
+| Régime normal | 0 – 8 % |
+| Borne haute apprise | ~11 % |
+| Pendant la tempête | 26 – 52 % |
+
+La tempête est donc environ **4x au-dessus de la bande**. À noter honnêtement :
+la borne haute est à 11 % alors que la médiane réelle est à 2,5 % — elle est
+élargie par mes répétitions passées. Le rapport reste largement suffisant, mais
+évite d'enchaîner plus de deux répétitions à la même heure de la journée : la
+saisonnalité est `daily` et l'algorithme finit par apprendre la tempête. C'est
+exactement ce qui est arrivé avec `agile`, qui ne se déclenchait plus du tout à
+la troisième répétition.
+
+### La garantie visuelle
+
+La tuile **« Part de paiements refusés vs bande apprise »** (groupe vert du
+dashboard opérations) calcule `anomalies()` **à l'affichage**, sur la fenêtre
+choisie. Elle ne dépend donc pas de l'horloge d'évaluation du monitor :
+
+- elle dessine la bande et peint la zone hors bande en rouge même si le monitor
+  n'a pas encore basculé ;
+- elle est **rejouable sur un créneau passé**. Si la tempête du jour arrive trop
+  tard, règle la fenêtre du dashboard sur celle d'une répétition et l'anomalie
+  est là. Les métriques sont conservées 15 mois.
+
+La tuile **« Historique du monitor à seuil dynamique »** juste à côté est
+l'autre moitié de la preuve : elle montre la barre rouge/verte du monitor
+lui-même, avec la minute exacte du basculement.
+
+La troisième tuile, **« Le même trafic sans anomalies() »**, sert de contraste :
+même courbe, aucune bande, aucun seuil possible sans en écrire un à la main.
