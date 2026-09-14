@@ -175,6 +175,26 @@ resource "datadog_dashboard" "graphql_health" {
             display_type = "bars"
             style { palette = "warm" }
           }
+
+          custom_link {
+            override_label = "traces"
+            link           = "/apm/traces?query=env%3A$env.value%20service%3A${var.bff_service}%20%40graphql.error.code%3A*&agg_m=count"
+          }
+
+          custom_link {
+            override_label = "logs"
+            link           = "/logs?query=env%3A$env.value%20service%3A${var.bff_service}%20%40error_code%3A*"
+          }
+
+          custom_link {
+            label = "Traces — PAYMENT_DECLINED only"
+            link  = "/apm/traces?query=env%3A$env.value%20service%3A${var.bff_service}%20%40graphql.error.code%3APAYMENT_DECLINED&agg_m=count"
+          }
+
+          custom_link {
+            label = "Traces — INVALID_DATE only"
+            link  = "/apm/traces?query=env%3A$env.value%20service%3A${var.bff_service}%20%40graphql.error.code%3AINVALID_DATE&agg_m=count"
+          }
         }
       }
 

@@ -57,6 +57,14 @@ function datadogGraphQLPlugin(logger) {
             if (span) {
               span.setTag('graphql.error.code', code);
               span.setTag('graphql.error.kind', kind);
+              // Second copy of the same information, named and cased exactly
+              // like the DogStatsD tag. Datadog's built-in "View traces" pivot
+              // on a metric widget carries the metric's group-by tag verbatim —
+              // tag name `error_code`, value lowercased by the metrics intake —
+              // so a span tagged only `graphql.error.code:PAYMENT_DECLINED`
+              // never matches and the pivot lands on an empty search.
+              span.setTag('error_code', code.toLowerCase());
+              span.setTag('error_kind', kind.toLowerCase());
               // Business rejections are valid outcomes, not service failures.
               // Marking them as errors would drown the real incidents.
               if (kind === 'BUSINESS') span.setTag('error', false);
