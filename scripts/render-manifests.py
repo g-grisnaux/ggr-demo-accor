@@ -106,6 +106,12 @@ def datadog_env(service, port):
               value: "__GIT_REPOSITORY_URL__"
             - name: DD_GIT_COMMIT_SHA
               value: "__GIT_COMMIT_SHA__"
+            # DD_PROFILING_ENABLED is already baked into each image, but the
+            # thread timeline is a separate opt-in. Without this the profile
+            # panel on a span says "No timeline data related to this span" even
+            # though profiling itself is working.
+            - name: DD_PROFILING_TIMELINE_ENABLED
+              value: "true"
             - name: DD_ENV
               valueFrom:
                 fieldRef:

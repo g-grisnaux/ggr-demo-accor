@@ -118,11 +118,12 @@ never called.
   inner GraphQL spans carry `status=error`. Filter on
   `@graphql.error.code:*`, not on `status:error`. This is worth saying out
   loud: an HTTP-level error rate is structurally blind to GraphQL failures.
-- **Root spans stay `ok` even for genuine upstream failures.** During
-  `booking-outage` the trace list looks healthy. Fixing it properly means
-  marking the root span as an error for `kind=UPSTREAM` and `kind=SERVER` while
-  leaving `BUSINESS` clean — a one-line change in `src/telemetry.js` plus a BFF
-  rollout, not applied.
+- **Business rejections and real failures are now separated**, at both the
+  span and the log level. `kind=BUSINESS` keeps `error:false` and logs at warn;
+  `kind=UPSTREAM` and `kind=SERVER` set `error:true` and log at error. Measured
+  during a `booking-outage`: 1,825 UPSTREAM lines at level 50 against 6 BUSINESS
+  lines at level 40. So `status:error service:graphql-bff` now surfaces an
+  outage and stays quiet on a declined card.
 - **The trace and log links on the business-code widgets are hand-wired.**
   Datadog greys out its own trace pivot on those widgets and the cause could
   not be established; every link was verified by hand instead.

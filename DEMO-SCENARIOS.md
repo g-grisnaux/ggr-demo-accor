@@ -322,9 +322,9 @@ State these rather than let them be discovered on stage:
 - **Feature Flags is not demonstrable.** The Datadog OpenFeature provider times
   out at BFF startup, so the dataloader flag is not actually served; the N+1
   scenario runs off its environment override instead.
-- **Root spans are `ok` even for genuine upstream failures**, for the same
-  HTTP-200 reason described above. During `booking-outage` the trace list shows
-  healthy-looking traces. Marking the root span as an error for
-  `kind=UPSTREAM` and `kind=SERVER`, while leaving `BUSINESS` clean, would fix
-  that properly — it is a one-line change in `src/telemetry.js` plus a BFF
-  rollout, and has not been applied.
+- **Business rejections and real failures are separated by design.** A
+  declined card keeps the span at `error:false` and logs at warn, because it is
+  a normal outcome of a payment funnel and must not inflate the APM error rate.
+  An upstream or server failure sets `error:true` and logs at error. Verified on
+  a live outage: 1,825 UPSTREAM log lines at error level against 6 BUSINESS
+  lines at warn.

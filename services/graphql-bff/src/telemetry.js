@@ -65,9 +65,13 @@ function datadogGraphQLPlugin(logger) {
               // never matches and the pivot lands on an empty search.
               span.setTag('error_code', code.toLowerCase());
               span.setTag('error_kind', kind.toLowerCase());
-              // Business rejections are valid outcomes, not service failures.
-              // Marking them as errors would drown the real incidents.
-              if (kind === 'BUSINESS') span.setTag('error', false);
+              // Business rejections are valid outcomes, not service failures, so
+              // they must not inflate the APM error rate. A genuine upstream or
+              // server failure is the opposite and has to be visible as an
+              // error — otherwise `status:error` on this service returns
+              // nothing during an actual outage, which is what happened before
+              // this distinction existed.
+              span.setTag('error', kind !== 'BUSINESS');
             }
             statsd.increment('bff.graphql.errors', 1, {
               operation: operationName,
@@ -76,10 +80,23 @@ function datadogGraphQLPlugin(logger) {
               upstream_service: (err.extensions && err.extensions.upstreamService) || 'none',
               client_name: clientName,
             });
-            logger.warn(
-              { operation: operationName, error_code: code, error_kind: kind, msg_detail: err.message },
-              'graphql operation returned an error'
-            );
+            // Same split for the log level. A declined card is a warning; a
+            // downstream service that stopped answering is an error. Keeping
+            // both at warn meant the entry-point service looked healthy in the
+            // logs while the service behind it was logging errors.
+            const logAtErrorLevel = kind !== 'BUSINESS';
+            const logPayload = {
+              operation: operationName,
+              error_code: code,
+              error_kind: kind,
+              upstream_service: (err.extensions && err.extensions.upstreamService) || undefined,
+              msg_detail: err.message,
+            };
+            if (logAtErrorLevel) {
+              logger.error(logPayload, 'graphql operation failed');
+            } else {
+              logger.warn(logPayload, 'graphql operation rejected');
+            }
           }
         },
 
