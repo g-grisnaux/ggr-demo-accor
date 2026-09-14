@@ -36,6 +36,10 @@ spec:
           env:
             - name: DD_SERVICE
               value: "booking-api"
+            - name: DD_GIT_REPOSITORY_URL
+              value: "__GIT_REPOSITORY_URL__"
+            - name: DD_GIT_COMMIT_SHA
+              value: "__GIT_COMMIT_SHA__"
             - name: DD_ENV
               valueFrom:
                 fieldRef:

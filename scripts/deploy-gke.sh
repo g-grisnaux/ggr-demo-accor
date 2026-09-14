@@ -16,13 +16,13 @@
 #
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-datadog-ese-sandbox}"
+PROJECT_ID="${PROJECT_ID:?set PROJECT_ID, e.g. in .env}"
 REGION="${REGION:-europe-west9}"
 ZONE="${ZONE:-europe-west9-a}"
 CLUSTER_NAME="${CLUSTER_NAME:-ggr-demo-accor}"
 REPOSITORY="${REPOSITORY:-ggr-demo-accor}"
 NAMESPACE="${NAMESPACE:-ggr-demo-accor}"
-SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com}"
+SERVICE_ACCOUNT="${SERVICE_ACCOUNT:?set SERVICE_ACCOUNT, e.g. in .env}"
 REGISTRY_IDENTITY="${REGISTRY_IDENTITY:-service-account}"
 
 # GKE node pools are amd64. Building on an Apple Silicon Mac without pinning the

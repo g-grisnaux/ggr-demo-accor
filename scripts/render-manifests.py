@@ -94,8 +94,18 @@ def tags(service):
 
 
 def datadog_env(service, port):
+    # DD_GIT_* is what links a span to a line of code. Datadog's Source Code
+    # Integration needs both: the repository URL to know where to look, and the
+    # commit SHA to know which revision the running code is. Without them, the
+    # uploaded git metadata has nothing to attach to and Bits reports
+    # "Unknown repository". Injected from the deploy script so the SHA always
+    # matches the image that was built.
     return f"""            - name: DD_SERVICE
               value: "{service}"
+            - name: DD_GIT_REPOSITORY_URL
+              value: "__GIT_REPOSITORY_URL__"
+            - name: DD_GIT_COMMIT_SHA
+              value: "__GIT_COMMIT_SHA__"
             - name: DD_ENV
               valueFrom:
                 fieldRef:

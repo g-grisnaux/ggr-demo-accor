@@ -1,7 +1,6 @@
 variable "project_id" {
-  description = "GCP project hosting the demo."
+  description = "GCP project hosting the demo. Supplied by scripts/deploy-gke.sh; no default, so a public copy of this repository does not advertise the project."
   type        = string
-  default     = "datadog-ese-sandbox"
 }
 
 variable "region" {
@@ -17,9 +16,8 @@ variable "zone" {
 }
 
 variable "impersonate_service_account" {
-  description = "Service account Terraform impersonates. Never a key file."
+  description = "Service account Terraform impersonates. Never a key file. Supplied by scripts/deploy-gke.sh — deliberately without a default, so a public copy of this repository does not name a privileged IAM principal."
   type        = string
-  default     = "gael-service-account-demo@datadog-ese-sandbox.iam.gserviceaccount.com"
 }
 
 variable "cluster_name" {

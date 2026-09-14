@@ -16,7 +16,7 @@
 #
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-datadog-ese-sandbox}"
+PROJECT_ID="${PROJECT_ID:?set PROJECT_ID, e.g. in .env}"
 REGION="${REGION:-europe-west9}"
 REPOSITORY="${REPOSITORY:-ggr-demo-accor}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
