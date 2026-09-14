@@ -129,58 +129,34 @@ never called.
 
 ---
 
-## Part 5 — Source code integration: what Bits is missing
+## Part 5 — Source code integration: wired and verified
 
-Bits reports `Unknown repository` for `graphql-bff` and cannot finish. That is
-correct behaviour, not a bug: Datadog's Source Code Integration is not set up on
-this project. Three things are missing, not one.
+Done on 2026-09-14. Bits no longer reports `Unknown repository`.
 
-1. **There is no git remote.** The repository is local only — it was created
-   during this work and never pushed. `datadog-ci git-metadata upload` reports a
-   repository URL and a commit SHA, so with no remote there is nothing to
-   report.
-2. **The services carry no git tags.** Datadog links a span to a line of code
-   through `git.commit.sha` and `git.repository_url` on the telemetry, which
-   come from `DD_GIT_REPOSITORY_URL` and `DD_GIT_COMMIT_SHA` at build or run
-   time. Neither is set anywhere, so even with metadata uploaded the traces
-   would not point at it.
-3. **`datadog-ci` is not installed.**
+| Étape | État |
+|---|---|
+| Dépôt hébergé | `github.com/g-grisnaux/ggr-demo-accor`, **public** |
+| Datadog GitHub App | installée, dépôt `CONFIGURED`, dernière synchro 09:55:22Z |
+| Métadonnées git | 208 chemins de fichiers, commit `610d876` |
+| Tags sur les services | `DD_GIT_REPOSITORY_URL` et `DD_GIT_COMMIT_SHA` sur les 4 |
+| Spans | portent `git.commit.sha` et `git.repository.id` — vérifié |
 
-### What it would take
+Aucun rebuild d'image n'a été nécessaire : les tracers lisent ces variables dans
+l'environnement au démarrage, et elles viennent du Deployment. La documentation
+Node de Datadog est explicite sur ce point. Un rollout de trois minutes a suffi
+là où un premier brouillon prévoyait quatre Cloud Builds.
 
-| Étape | Coût | Remarque |
-|---|---|---|
-| Créer un dépôt distant et pousser | 10 min | **Décision à prendre** : cela publie le code. L'historique a été audité, `.env` n'y a jamais été commité et aucun secret n'y apparaît. |
-| `npm i -g @datadog/datadog-ci` puis `datadog-ci git-metadata upload` | 5 min | |
-| Ajouter `DD_GIT_*` aux manifests, rebuild des 4 images, redéploiement | 30-40 min | Cloud Build plus rollout |
+### Deux choses à savoir
 
-Compter une heure, et le dernier point touche au déploiement.
+**Le dépôt est public.** Il contient la documentation de démo, réserves
+honnêtes incluses — « Feature Flags ne s'initialise pas », « les spans racine
+restent ok », « les liens de pivot sont câblés à la main ». C'est bon pour
+l'honnêteté d'ingénierie, mais c'est lisible par n'importe qui.
 
-### Ce que ça change, et ce que ça ne change pas
+**L'App Datadog a des permissions en écriture** sur le dépôt : `contents`,
+`administration`, `workflows`, `actions`, `pull_requests` et quatre autres.
+C'est le jeu de permissions recommandé par défaut, nécessaire aux PR Comments et
+aux liens de contexte. Sur un dépôt de démo jetable c'est sans conséquence ; si
+l'installation couvre « All repositories », elle porte les mêmes droits sur les
+autres dépôts personnels, ce qui mérite un coup d'oeil dans les réglages GitHub.
 
-Sans intégration du code source, Bits travaille **sur la télémétrie seule** :
-métriques, traces, logs, profils. Le chemin d'enquête conçu pour cette démo —
-code d'erreur métier, puis trace, puis logs des services traversés — ne dépend
-pas du code source. Les cinq constats de la fiche ci-dessus sont tous
-atteignables sans.
-
-Ce qu'on perd : les fonctions liées au code — remonter à la ligne fautive,
-proposer un correctif, relier un déploiement à un commit. C'est appréciable,
-mais ce n'est pas ce qui répond à « quelle API REST est fautive ».
-
-### Recommandation pour demain
-
-Ne pas le monter dans l'urgence. Deux raisons : une heure de travail la veille,
-dont un rebuild complet, pour une fonctionnalité annexe au récit ; et pousser le
-code sur un dépôt distant est une décision qui mérite mieux qu'une décision
-prise à la hâte.
-
-À la place, l'annoncer franchement s'ils posent la question :
-
-> « L'intégration du code source n'est pas branchée sur cet environnement, donc
-> Bits raisonne ici sur la télémétrie seule — métriques, traces, logs. Branchée,
-> elle ajoute le lien vers la ligne de code et le commit. C'est une commande
-> `datadog-ci` dans votre CI, pas un chantier. »
-
-C'est vrai, c'est vérifiable, et ça vaut mieux qu'une démo à moitié câblée qui
-échoue devant eux.
