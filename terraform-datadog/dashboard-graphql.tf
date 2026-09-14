@@ -176,7 +176,7 @@ resource "datadog_dashboard" "graphql_health" {
 
       widget {
         note_definition {
-          content          = "Two views of the same information, on purpose.\n\nThe **span-based** widget is derived from the traces themselves, so its context menu pivots natively into APM and Logs — that is the one to click.\n\nThe **DogStatsD** widget is the counter the anomaly monitor runs on: cheaper at high cardinality, but a standalone timeseries with no link back to individual requests. Its native pivot sends a bare `error_code:` query, which only resolves once that span tag is promoted to a facet in the APM UI.\n\nBoth queries are scoped to `service:graphql-bff`: the pivots stay greyed out when a widget resolves to no single service."
+          content          = "Two views of the same information, on purpose.\n\nThe **span-based** widget is computed from the traces themselves. The **DogStatsD** widget is the counter the anomaly monitor runs on — cheaper at high cardinality, but a standalone timeseries with no link back to individual requests. Worth explaining as an architecture trade-off: the counter for alerting, the span metric for drilling in.\n\n**Right-click either widget** for the trace and log links, including one per business error code. Those links are wired explicitly: Datadog greys out its own trace pivot on these widgets and the cause could not be established, so every link here was verified by hand instead."
           background_color = "gray"
           font_size        = "12"
           text_align       = "left"
@@ -189,9 +189,10 @@ resource "datadog_dashboard" "graphql_health" {
           title       = "Errors by business code (span-based)"
           show_legend = true
           request {
-            # Derived from the spans, so the context menu's View traces / View
-            # logs entries resolve natively: the metric knows the span filter it
-            # was computed from. This is the widget to click during the demo.
+            # Computed from the spans rather than from a StatsD counter, which
+            # is the honest architecture for a drill-in view. Note that this did
+            # NOT make Datadog enable its native trace pivot on the widget —
+            # hence the explicit custom links below.
             q            = "sum:${datadog_spans_metric.graphql_business_errors.name}{$env,service:${var.bff_service}}by{error_code}.as_count()"
             display_type = "bars"
             style { palette = "warm" }
