@@ -158,7 +158,7 @@ resource "datadog_dashboard" "graphql_health" {
 
       widget {
         note_definition {
-          content          = "Fed by DogStatsD from `src/telemetry.js`. Each query is scoped to `service:graphql-bff` on purpose: Datadog only enables the **View traces / View logs / View profiles** pivots when a widget query resolves to a concrete service. Scoping on `env` alone leaves those menu entries greyed out."
+          content          = "Two views of the same information, on purpose.\n\nThe **span-based** widget is derived from the traces themselves, so its context menu pivots natively into APM and Logs — that is the one to click.\n\nThe **DogStatsD** widget is the counter the anomaly monitor runs on: cheaper at high cardinality, but a standalone timeseries with no link back to individual requests. Its native pivot sends a bare `error_code:` query, which only resolves once that span tag is promoted to a facet in the APM UI.\n\nBoth queries are scoped to `service:graphql-bff`: the pivots stay greyed out when a widget resolves to no single service."
           background_color = "gray"
           font_size        = "12"
           text_align       = "left"
@@ -168,7 +168,22 @@ resource "datadog_dashboard" "graphql_health" {
 
       widget {
         timeseries_definition {
-          title       = "GraphQL errors by business code"
+          title       = "Errors by business code (span-based) — pivots straight to the traces"
+          show_legend = true
+          request {
+            # Derived from the spans, so the context menu's View traces / View
+            # logs entries resolve natively: the metric knows the span filter it
+            # was computed from. This is the widget to click during the demo.
+            q            = "sum:${datadog_spans_metric.graphql_business_errors.name}{$env,service:${var.bff_service}}by{error_code}.as_count()"
+            display_type = "bars"
+            style { palette = "warm" }
+          }
+        }
+      }
+
+      widget {
+        timeseries_definition {
+          title       = "GraphQL errors by business code (DogStatsD) — what the monitor alerts on"
           show_legend = true
           request {
             q            = "sum:bff.graphql.errors{$env,service:${var.bff_service}}by{error_code}.as_count()"
@@ -176,25 +191,6 @@ resource "datadog_dashboard" "graphql_health" {
             style { palette = "warm" }
           }
 
-          custom_link {
-            override_label = "traces"
-            link           = "/apm/traces?query=env%3A$env.value%20service%3A${var.bff_service}%20%40graphql.error.code%3A*&agg_m=count"
-          }
-
-          custom_link {
-            override_label = "logs"
-            link           = "/logs?query=env%3A$env.value%20service%3A${var.bff_service}%20%40error_code%3A*"
-          }
-
-          custom_link {
-            label = "Traces — PAYMENT_DECLINED only"
-            link  = "/apm/traces?query=env%3A$env.value%20service%3A${var.bff_service}%20%40graphql.error.code%3APAYMENT_DECLINED&agg_m=count"
-          }
-
-          custom_link {
-            label = "Traces — INVALID_DATE only"
-            link  = "/apm/traces?query=env%3A$env.value%20service%3A${var.bff_service}%20%40graphql.error.code%3AINVALID_DATE&agg_m=count"
-          }
         }
       }
 
