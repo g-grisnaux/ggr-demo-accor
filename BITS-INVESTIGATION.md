@@ -13,61 +13,15 @@ it; everything below is reproducible by hand regardless.
 
 ## Part 1 — The demo flow
 
-Three acts, one monitor each. The order matters: getting it wrong makes the
-argument collapse, because during Act 2 *both* monitors are red.
+Not repeated here. The flow lives in **[DEMO-DEROULE.md](DEMO-DEROULE.md)**,
+in French, click by click, and it is the single source of truth — an earlier
+version of this section had drifted out of date with the monitor names and
+carried a framing of act 1 that was not defensible.
 
-### Act 1 — the alert they have learned to ignore
-
-Nothing running. System healthy.
-
-**Monitors → `[ALL BFF] (contrast) Global GraphQL error rate over 5%`** — red,
-and red for days.
-
-Ask what is broken. Nothing is. Follow the dashboard link, scroll to the
-business-error group. `invalid_date` is a flat background of clients sending
-reversed date ranges, and the tile puts a number on it: **9.6% of operations**
-are business rejections, permanently above a 5% threshold.
-
-No investigation in this act. That is the point — a global threshold on a
-GraphQL error rate fires on business as usual, so nobody reads it any more.
-
-### Act 2 — the alert that means something
-
-Trigger **4 to 5 minutes before** you need it. Measured: raised at 08:08:38Z,
-the monitor went to Alert at 08:12:51Z.
-
-```bash
-scripts/scenario.sh payment-storm
-```
-
-**`[ALL BFF] Anomalous rate on a business error code`** goes OK → Alert, and
-names `PAYMENT_DECLINED`.
-
-The line that carries the argument: the naive monitor is red at this moment too
-— but it was *already* red, so it carries no information. Only the business
-monitor has a delta, and that delta names the failing business rule. You know
-which team to wake before opening a trace.
-
-Then drill: right-click the business-code widget → **Traces — PAYMENT_DECLINED**
-→ a failing trace → its **Logs** tab (five logs, one per service) → a SQL span →
-**View query in DBM**.
-
-### Act 3 — the investigation, and where Bits comes in
-
-```bash
-scripts/scenario.sh reset
-scripts/scenario.sh booking-outage
-```
-
-The *same* business monitor fires on a different code:
-`UPSTREAM_UNAVAILABLE`. Same alert, completely different cause. This is the one
-to hand to Bits.
-
-Reset when done:
-
-```bash
-scripts/scenario.sh booking-outage-off
-```
+What matters for this document: the investigation happens in **acte 3**, driven
+by `scripts/scenario.sh booking-outage`, and the monitor that fires is
+`[ALL BFF] (seuil dynamique) Code d'erreur métier anormal` on the code
+`UPSTREAM_UNAVAILABLE`.
 
 ---
 
@@ -117,8 +71,8 @@ stack. Hold Bits' output against it item by item.
 
 | # | Finding | Evidence | Measured |
 |---|---|---|---|
-| 1 | The failing operation is the **`createBooking` mutation**, not `searchHotels` | Error rate per resolver; `query.searchhotels` unchanged | `searchHotels` keeps its normal ~9% invalid-date background |
-| 2 | The error code is **`UPSTREAM_UNAVAILABLE`**, not `PAYMENT_DECLINED` | Business error code breakdown | The business monitor names the code in its title |
+| 1 | The failing operation is the **`createBooking` mutation**, not `searchHotels` | Error rate per resolver; `query.searchhotels` unchanged | `searchHotels` keeps its normal background rate |
+| 2 | The error code is **`UPSTREAM_UNAVAILABLE`**, not `PAYMENT_DECLINED` | Business error code breakdown | The per-code monitor names it in the alert |
 | 3 | **payment-api is not involved at all** | No `payment-api` span in the failing traces; no authorization logs | **0 authorizations attempted** during the outage |
 | 4 | The failure **surfaces in booking-api** | booking-api log, in the trace | `availability lookup failed ... Read timed out. (read timeout=5)` against `hotel-search-api:8081` |
 | 5 | The cause is **hotel-search-api's availability endpoint** | Latency per endpoint on that service; its own log line | `get_/hotels/_hotelid_/availability` goes from **2.8 ms to over 6 s**; the log carries `delay_ms=6000` |
@@ -153,8 +107,12 @@ never called.
 
 - **Bits AI Investigate availability is unverified** on this account. No public
   API exposes it, so it has to be checked in the UI.
-- **The business monitor takes about 4 minutes** to fire after a scenario is
-  triggered. Trigger early.
+- **Firing delay, measured.** The per-code monitor took about 4 minutes on one
+  run. The payment monitor took 9 minutes on its first run and did not fire at
+  all on its third at an 83% decline rate — rehearsing had taught the `agile`
+  algorithm that the storm was normal. It now runs `robust`, which holds its
+  band, and the scenario should be driven at `declineRate=1.0` rather than 0.45.
+  Trigger 5 minutes early either way.
 - **The trace list shows these traces as `ok`.** A failing GraphQL operation
   returns HTTP 200 by specification, so the root span is healthy while the
   inner GraphQL spans carry `status=error`. Filter on
