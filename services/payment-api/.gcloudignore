@@ -1,0 +1,9 @@
+# gcloud builds submit does not read .dockerignore, so the ignore list has to
+# be repeated here or every build uploads node_modules.
+.gcloudignore
+node_modules/
+dist/
+target/
+__pycache__/
+*.pyc
+*.tsbuildinfo

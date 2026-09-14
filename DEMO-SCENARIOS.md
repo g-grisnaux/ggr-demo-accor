@@ -4,6 +4,16 @@ Everything below runs against the public GraphQL endpoint, the way a real ALL
 client would. Failures are triggered by runtime switches inside the running
 pods, not by redeploying, so the before/after lands on the same dashboard.
 
+**Dashboards and monitors** (created by `terraform-datadog/`)
+
+| Asset | Link / id |
+|---|---|
+| ALL BFF — GraphQL operation health | <https://app.datadoghq.com/dashboard/tgq-6hy-vt9> |
+| ALL BFF — BFF to REST chain latency | <https://app.datadoghq.com/dashboard/h7a-fyg-da5> |
+| Monitor: anomalous error rate per resolver | `321507072` — `agile`, daily seasonality, ~7 days of history |
+| Monitor: anomalous rate per business error code | `321507071` — `basic`, history started today |
+| Monitor: global error rate > 5% (counter-example) | `321507068` — already firing on the normal invalid-date background |
+
 **Prerequisites**
 
 ```bash
@@ -84,8 +94,61 @@ for the menu and `scripts/scenario.sh reset` to return to baseline.
 | **Latency regression** | `scripts/scenario.sh latency-on` | `searchHotels` goes from ~5 ms to ~160 ms. The SQL predicate becomes non-sargable (`LOWER(city)`) and the ranking turns CPU-bound. | **APM**: p95 on `searchHotels` jumps. **DBM**: the plan flips from Bitmap Index Scan to Seq Scan — 0.8 ms → 14.8 ms on the query alone. **Profiler**: `RankingService.relevanceScore` dominates the flame graph. |
 | **Payment storm** | `scripts/scenario.sh payment-storm` | Declines go from 4% to 45%, split across `insufficient_funds`, `card_expired`, `do_not_honor`. | **Dashboards**: `bff.graphql.errors` broken down by `error_code`. **Monitors**: anomaly detection fires on `PAYMENT_DECLINED` while `INVALID_DATE` stays flat — the two never share an alert. |
 | **N+1 resolver** | `scripts/scenario.sh n-plus-one-on` | The availability dataloader is disabled; each of the 25 results fetches its own availability. | **APM trace**: 25 sibling `hotel-search-api` spans instead of 1. Latency only moves ~10 ms → ~18 ms because the fan-out is concurrent — the story here is span count and upstream load, not a latency spike. |
+| **Booking outage (investigation)** | `scripts/scenario.sh booking-outage` | A 6s delay on hotel-search-api's availability endpoints exceeds booking-api's 5s timeout. `createBooking` fails with `UPSTREAM_UNAVAILABLE` before payment is ever contacted. | The scenario to *investigate* rather than narrate — see the section below. Verified: 0 payment authorizations during the outage, `booking-api` logging `Read timed out (read timeout=5)` against `hotel-search-api:8081`. |
 | **Front-end crash** | Click **Break the funnel** in the UI navbar | A React render reads a property of an undefined rate object and the error boundary catches it. | **RUM → Error Tracking**: the error with its component stack, the session replay of the click that caused it, and the console/network context. |
 | **Business rejection baseline** | Always on — the load generator sends ~9% malformed date ranges | `INVALID_DATE` errors flow continuously. | Shows why a single "GraphQL error rate" monitor is useless: business rejections are a stable background, and burying them with real failures is what makes CloudWatch alerting noisy. |
+
+
+---
+
+## The investigation scenario — following one trace across four services
+
+This is the scenario to run as an *investigation* rather than a guided tour. It
+is built so the cause sits two hops from the symptom, with a plausible innocent
+suspect in between.
+
+```bash
+scripts/scenario.sh booking-outage
+```
+
+**The symptom.** `createBooking` starts failing. On the GraphQL health
+dashboard, `error_code:upstream_unavailable` climbs while `invalid_date` and
+`payment_declined` stay where they were.
+
+**The trap.** On a healthy `createBooking` trace, `payment-api` is by far the
+slowest span — about 122ms out of 183ms. Anyone who has looked at this trace
+before will reach for the payment partner first. Payment is completely healthy
+throughout: measured 0 authorizations attempted during the outage, because it is
+never called.
+
+**The path.**
+
+1. **Dashboard** — error rate on the mutation up, and the breakdown says
+   `UPSTREAM_UNAVAILABLE`, not `PAYMENT_DECLINED`. The business error taxonomy
+   has already ruled out the obvious suspect, before opening a single trace.
+2. **APM trace** — the span tree stops at `booking-api`. There is no
+   `payment-api` span at all, which is the tell: the booking never got that far.
+3. **Logs from the trace** — `booking-api` says it plainly:
+   `availability lookup failed ... Read timed out. (read timeout=5)` against
+   `hotel-search-api:8081`.
+4. **hotel-search-api** — `GET /hotels/{hotelId}/availability` has gone from
+   ~2ms to over 5s, and its own log line carries `delay_ms=6000`.
+5. **Conclusion** — a dependency of a dependency. The public GraphQL operation
+   that failed is three layers above the service that broke.
+
+**Why it is a good fit for an AI-assisted investigation.** The signal that
+matters (`UPSTREAM_UNAVAILABLE` rather than `PAYMENT_DECLINED`) is a tag on a
+custom metric, the evidence is split across a trace and the logs of two
+different services, and the span tree proves a negative — that payment was
+never reached. That is a lot of correlation to do by hand under time pressure.
+
+Availability of Bits AI Investigate depends on the Datadog account; confirm it
+in the UI before building the live demo around it. Everything above is
+reproducible manually regardless.
+
+```bash
+scripts/scenario.sh booking-outage-off   # or: scenario.sh reset
+```
 
 ---
 
@@ -124,10 +187,11 @@ On top of that:
 
 | Pivot | Mechanism | Verified |
 |---|---|---|
-| trace -> logs | `dd.trace_id` / `dd.span_id` injected into the JSON logs by each tracer | Yes — querying logs by `trace_id` returns the log |
+| trace -> logs | `dd.trace_id` / `dd.span_id` injected into the JSON logs by each tracer. Every service logs once per request, so a trace always has a log from each service it touched. | Yes — 5 logs from all 4 services on every sampled createBooking trace |
 | logs -> trace | Same ids, consumed by the log intake into the reserved `trace_id` | Yes |
 | trace -> DBM query sample & plan | `DD_DBM_PROPAGATION_MODE=full` makes each tracer prepend a SQL comment carrying `traceparent` | Yes — verified on all three tracers (Java, Python, Node) |
 | RUM session -> backend trace | `allowedTracingUrls` injects `datadog` + `tracecontext` headers on `/graphql` | Configured, not yet verified in a browser |
+| metric -> trace | DogStatsD counters carry env/service/version so a widget scopes into APM, but a counter has no per-request identity. The per-request pivot is a span-based metric on `graphql.error.code`. | Metrics flowing; span-based metric not created |
 | RUM session -> browser logs | Browser Logs SDK stamps `session_id` and `view.id` when RUM is present | Configured, not yet verified in a browser |
 | profiles -> trace | Endpoint profiling, automatic with `DD_PROFILING_ENABLED` | Configured, not yet verified |
 | infrastructure -> APM | `tags.datadoghq.com/*` pod labels, plus `kube_namespace:ggr-demo-accor` and `kube_cluster_name:ggr-demo-accor` | Configured |
