@@ -1,0 +1,41 @@
+# Worker de private location Datadog Synthetics.
+#
+# Capturé depuis le cluster vivant avant décommissionnement — cette installation
+# avait été faite à la main et n'existait dans aucun fichier du repo, ce qui en
+# faisait le seul composant non reproductible de la démo.
+#
+# Chart : datadog/synthetics-private-location, version 0.17.32 (app 1.73.0)
+#
+# Aucun secret ici. Les identifiants de la private location vivent dans un
+# Secret Kubernetes distinct, référencé par `configSecret` ci-dessous et créé
+# hors Terraform : Datadog ne les renvoie qu'une seule fois, à la création de la
+# private location, et ils ne doivent donc jamais transiter par un état
+# Terraform. Voir RESTORE.md pour la procédure exacte.
+#
+# Installation :
+#   helm upgrade --install synthetics-pl \
+#     datadog/synthetics-private-location \
+#     --version 0.17.32 \
+#     -n ggr-demo-accor \
+#     -f helm/synthetics-pl-values.yaml
+
+# Nom du Secret Kubernetes contenant synthetics-check-runner.json, le fichier de
+# configuration téléchargé depuis Datadog à la création de la private location.
+configSecret: synthetics-private-location
+
+# Sondes de statut : le worker expose son état de santé, ce qui permet de voir
+# depuis Kubernetes qu'il est prêt avant de lancer les tests.
+enableStatusProbes: true
+
+replicaCount: 1
+
+# Le test navigateur ouvre un Chrome headless dans le worker. Avec les requests
+# par défaut du chart il se faisait évincer sous charge ; 1Gi garanti et 3Gi de
+# limite tiennent le parcours de réservation complet.
+resources:
+  limits:
+    cpu: "2"
+    memory: 3Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
