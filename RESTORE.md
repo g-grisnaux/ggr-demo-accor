@@ -4,6 +4,19 @@ L'infrastructure a été détruite après la démo du 15 septembre 2026 pour ne 
 générer de coût. Ce document est la procédure de reconstruction, et il est
 explicite sur ce qui revient à l'identique et ce qui ne revient pas.
 
+**Ce qui a été supprimé :** le cluster GKE, son node pool et le dépôt Artifact
+Registry côté GCP ; les 4 monitors et les 5 tests Synthetics côté Datadog.
+
+**Ce qui a été conservé :** les 2 dashboards, la span metric et le filtre de
+rétention — ils ne coûtent rien, et comme Datadog garde les métriques 15 mois,
+les dashboards continuent d'afficher la démo réelle sur une fenêtre passée.
+
+**Ce qui subsiste sans être géré par Terraform :** la private location Synthetics
+existe toujours côté Datadog, sans worker pour l'exécuter. Elle ne coûte rien
+mais elle est orpheline — à supprimer dans l'interface si tu ne comptes pas
+reconstruire, sachant qu'une nouvelle private location impliquera de toute façon
+de nouveaux identifiants.
+
 ## Ce qui est entièrement dans le code
 
 | Composant | Reproductible par |
@@ -120,6 +133,20 @@ Traces, logs, sessions RUM et résultats Synthetics de septembre 2026 ne sont pa
 reconstructibles. Les métriques, elles, restent visibles 15 mois côté Datadog
 même après destruction de l'infrastructure — les dashboards sur une fenêtre
 passée continuent donc d'afficher la démo réelle.
+
+## Deux blocs à réactiver dans le code
+
+Supprimés le 15/09/2026 avec les monitors, et commentés plutôt que retirés pour
+que la reconstruction reste possible. À décommenter **après** avoir réappliqué
+`monitors.tf`, sinon Terraform échoue sur une référence à une ressource absente :
+
+| Fichier | Bloc |
+|---|---|
+| `terraform-datadog/dashboard-graphql.tf` | la tuile `alert_graph_definition` « Historique du monitor à seuil dynamique », dans le groupe vert |
+| `terraform-datadog/outputs.tf` | l'output `monitor_ids` |
+
+Un `alert_graph` pointant vers un monitor inexistant affiche une tuile en
+erreur — d'où la désactivation plutôt que le maintien en l'état.
 
 ## La séquence de reconstruction
 

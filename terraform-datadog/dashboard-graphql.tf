@@ -244,16 +244,19 @@ resource "datadog_dashboard" "graphql_health" {
         }
       }
 
-      widget {
-        alert_graph_definition {
-          # L'historique d'état du monitor lui-même : la barre rouge/verte.
-          # Complémentaire de la tuile ci-dessus — celle-ci prouve que le
-          # monitor a réellement basculé, et à quelle minute.
-          title    = "Historique du monitor à seuil dynamique"
-          alert_id = datadog_monitor.dynamic_payment_declines.id
-          viz_type = "timeseries"
-        }
-      }
+      # Tuile d'historique du monitor, désactivée au décommissionnement du
+      # 15/09/2026 : les monitors ont été supprimés avec l'infrastructure, et un
+      # alert_graph pointant sur un monitor inexistant affiche une tuile en
+      # erreur. Les définitions restent dans monitors.tf — réactiver ce bloc
+      # après avoir réappliqué les monitors. Voir RESTORE.md.
+      #
+      # widget {
+      #   alert_graph_definition {
+      #     title    = "Historique du monitor à seuil dynamique"
+      #     alert_id = datadog_monitor.dynamic_payment_declines.id
+      #     viz_type = "timeseries"
+      #   }
+      # }
 
       widget {
         timeseries_definition {
